@@ -1,6 +1,9 @@
 # Cyph – local dev with persistent DB and live code updates.
 # One command: docker compose up
 # App: http://localhost:4200  Backend: http://localhost:8080  DB: postgres (internal)
+#
+# Live reload: frontend uses ng serve --poll 2000; backend polls src/ every 2s and recompiles/restarts.
+# After changing Dockerfile.dev or entrypoint scripts, run: docker compose up --build
 
 services:
   db:

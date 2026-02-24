@@ -34,7 +34,7 @@ import { ApiService, RecipientOption } from '../../core/services/api.service';
           >
             <option value="" disabled>Select a user</option>
             @for (r of recipients; track r.email) {
-              <option [value]="r.email">{{ r.email }} {{ r.source ? '(' + r.source + ')' : '' }}</option>
+              <option [value]="r.email">{{ recipientLabel(r) }}</option>
             }
           </select>
           @if (recipients.length === 0 && !loadingRecipients) {
@@ -76,6 +76,11 @@ export class SendComponent implements OnInit {
   sending = false;
 
   constructor(private api: ApiService) {}
+
+  recipientLabel(r: RecipientOption): string {
+    if (r.displayName?.trim()) return `${r.displayName} (${r.email})`;
+    return r.source ? `${r.email} (${r.source})` : r.email;
+  }
 
   ngOnInit(): void {
     this.api.getRecipients().subscribe({

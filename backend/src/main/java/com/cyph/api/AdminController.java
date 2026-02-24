@@ -49,7 +49,12 @@ public class AdminController {
         if (adminEmail == null || !allowedUserService.isAdmin(adminEmail)) {
             return ResponseEntity.status(403).build();
         }
-        return allowedUserService.addByAdmin(request.getEmail())
+        return allowedUserService.addByAdmin(
+                        request.getEmail(),
+                        request.getUsername(),
+                        request.getPassword(),
+                        request.getGroup(),
+                        adminEmail)
                 .map(u -> ResponseEntity.ok(Map.of("email", u.getEmail(), "source", u.getSource().name())))
                 .orElse(ResponseEntity.badRequest().body(Map.of("message", "User already exists")));
     }

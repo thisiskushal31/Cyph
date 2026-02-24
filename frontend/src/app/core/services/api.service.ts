@@ -29,15 +29,25 @@ export interface AuthMethodsResponse {
 export interface RecipientOption {
   email: string;
   source: string;
+  displayName?: string;
+}
+
+export interface AddUserRequest {
+  email: string;
+  username?: string;
+  password?: string;
+  group?: string;
 }
 
 export interface AllowedUserDto {
   email: string;
+  displayName?: string | null;
   source: string;
   externalId: string | null;
   admin: boolean;
   createdAt: string;
   lastLoginAt: string | null;
+  addedBy?: string | null;
 }
 
 export interface AuditLogEntry {
@@ -89,8 +99,8 @@ export class ApiService {
     return this.http.get<AllowedUserDto[]>(`${this.base}/admin/users`, { withCredentials: true });
   }
 
-  addUser(email: string): Observable<{ email: string; source: string }> {
-    return this.http.post<{ email: string; source: string }>(`${this.base}/admin/users`, { email }, { withCredentials: true });
+  addUser(body: AddUserRequest): Observable<{ email: string; source: string }> {
+    return this.http.post<{ email: string; source: string }>(`${this.base}/admin/users`, body, { withCredentials: true });
   }
 
   removeUser(email: string): Observable<void> {

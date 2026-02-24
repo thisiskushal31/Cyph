@@ -45,7 +45,13 @@ public class SecretMessageController {
             return ResponseEntity.status(401).build();
         }
         List<Map<String, String>> list = allowedUserService.listAll().stream()
-                .map(dto -> Map.<String, String>of("email", dto.email(), "source", dto.source()))
+                .map(dto -> {
+                    var map = new java.util.HashMap<String, String>();
+                    map.put("email", dto.email());
+                    map.put("source", dto.source());
+                    if (dto.displayName() != null && !dto.displayName().isBlank()) map.put("displayName", dto.displayName());
+                    return map;
+                })
                 .collect(Collectors.toList());
         return ResponseEntity.ok(list);
     }

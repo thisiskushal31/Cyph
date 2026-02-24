@@ -35,6 +35,18 @@ public class AllowedUser {
     @Column(nullable = false, length = 20)
     private Source source = Source.ADMIN_ADDED;
 
+    /** Display name (username) for manual users. */
+    @Column(name = "display_name", length = 256)
+    private String displayName;
+
+    /** BCrypt hash for admin-added users who can sign in with form login. Null for SSO-only. */
+    @Column(name = "password_hash", length = 256)
+    private String passwordHash;
+
+    /** Email of the admin who added this user (for audit). */
+    @Column(name = "added_by", length = 256)
+    private String addedBy;
+
     /** Id from IdP (e.g. OIDC sub). Null until user has logged in at least once. */
     @Column(name = "external_id", length = 256)
     private String externalId;
@@ -79,6 +91,30 @@ public class AllowedUser {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
+    public String getAddedBy() {
+        return addedBy;
+    }
+
+    public void setAddedBy(String addedBy) {
+        this.addedBy = addedBy;
     }
 
     public Source getSource() {

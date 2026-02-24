@@ -7,4 +7,5 @@ RUN npm ci
 
 EXPOSE 4200
 # CYPH_API_TARGET=http://backend:8080 set in docker-compose; proxy.conf.js forwards Set-Cookie for session
-ENTRYPOINT ["sh", "-c", "npm install && npm start -- --host 0.0.0.0"]
+# --poll 2000: poll for file changes every 2s so bind-mounted source updates are picked up in Docker (Mac/Windows)
+ENTRYPOINT ["sh", "-c", "npm install && npm start -- --host 0.0.0.0 --poll 2000"]

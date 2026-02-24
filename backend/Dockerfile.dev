@@ -1,4 +1,4 @@
-# Dev image: run with source mounted; code changes trigger recompile via Gradle continuous build.
+# Dev image: run with source mounted; polling entrypoint recompiles and restarts when source changes.
 FROM eclipse-temurin:17-jdk
 WORKDIR /app
 
@@ -6,7 +6,8 @@ WORKDIR /app
 COPY gradlew ./
 COPY gradle gradle
 COPY build.gradle.kts settings.gradle.kts ./
+COPY docker-entrypoint.dev.sh ./
 
 EXPOSE 8080
-# Continuous build: recompiles and restarts when source changes (mount ./backend → /app)
-CMD ["./gradlew", "bootRun", "--no-daemon", "-t"]
+# Poll for changes every 2s so bind-mounted code updates apply without container restart (Mac/Windows)
+CMD ["sh", "./docker-entrypoint.dev.sh"]
