@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cyph-backend
+  labels:
+    app: cyph-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cyph-backend
+  template:
+    metadata:
+      labels:
+        app: cyph-backend
+    spec:
+      containers:
+        - name: backend
+          image: cyph-backend:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: cyph-config
+            - secretRef:
+                name: cyph-secrets
+                optional: true
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cyph-backend
+spec:
+  selector:
+    app: cyph-backend
+  ports:
+    - port: 80
+      targetPort: 8080
+  type: ClusterIP

@@ -1,0 +1,66 @@
+# PostgreSQL for Cyph. Create Secret 'cyph-db' with key DB_PASSWORD before applying.
+# Backend connects via env: DB_HOST=postgres, DB_PORT=5432, DB_NAME=cyph, DB_USER=cyph, DB_PASSWORD from Secret.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cyph-postgres
+  labels:
+    app: cyph-postgres
+spec:
+  serviceName: cyph-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cyph-postgres
+  template:
+    metadata:
+      labels:
+        app: cyph-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: cyph
+            - name: POSTGRES_USER
+              value: cyph
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cyph-secrets
+                  key: DB_PASSWORD
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels:
+    app: cyph-postgres
+spec:
+  selector:
+    app: cyph-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+  clusterIP: None

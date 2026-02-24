@@ -1,0 +1,93 @@
+# Cyph – example configuration. Copy to application.yml or mount as config for your organization.
+# Use environment variables for secrets (e.g. OIDC_CLIENT_SECRET, DB_PASSWORD, SMTP_PASSWORD).
+
+spring:
+  application:
+    name: cyph-backend
+
+  datasource:
+    url: jdbc:${DB_DRIVER:postgresql}://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:cyph}
+    username: ${DB_USER:cyph}
+    password: ${DB_PASSWORD:changeme}
+    driver-class-name: ${DB_DRIVER:org.postgresql.Driver}
+  # For quick local trial with H2:
+  # datasource:
+  #   url: jdbc:h2:mem:cyph;DB_CLOSE_DELAY=-1
+  #   username: sa
+  #   password:
+  # jpa:
+  #   hibernate:
+  #     ddl-auto: create-drop
+  #   database-platform: org.hibernate.dialect.H2Dialect
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
+  # Mail (optional in dev; required for sending “you have a secret message” emails in prod)
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USER:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          starttls:
+            enable: true
+
+  # OAuth2 / OIDC – SSO (first priority when enabled)
+  security:
+    oauth2:
+      client:
+        registration:
+          # Example: organization IdP (Keycloak, Okta, Auth0, Azure AD, etc.)
+          sso:
+            provider: sso
+            client-id: ${OIDC_CLIENT_ID:}
+            client-secret: ${OIDC_CLIENT_SECRET:}
+            scope: openid,email,profile
+            client-name: Organization SSO
+          # Optional: Google for admin-added users (when SSO is not used or as fallback)
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:}
+            client-secret: ${GOOGLE_CLIENT_SECRET:}
+            scope: email,profile
+        provider:
+          sso:
+            issuer-uri: ${OIDC_ISSUER_URI:https://idp.example.com/realms/master}
+
+server:
+  port: ${PORT:8080}
+
+# --- Cyph-specific configuration (no code changes per organization) ---
+cyph:
+  site-url: ${SITE_URL:http://localhost:4200}
+  message:
+    default-ttl-hours: 24
+  auth:
+    # OAuth2 buttons on login page (e.g. [sso, google]). Each must have spring.security.oauth2.client.registration.{id} configured.
+    oauth2-registration-ids: [sso, google]
+    form-login:
+      enabled: ${FORM_LOGIN_ENABLED:false}
+      username: ${ADMIN_USERNAME:}
+      password: ${ADMIN_PASSWORD:}
+    sso:
+      enabled: ${SSO_ENABLED:false}
+      issuer-uri: ${OIDC_ISSUER_URI:}
+      client-id: ${OIDC_CLIENT_ID:}
+      client-secret: ${OIDC_CLIENT_SECRET:}
+      scope: openid email profile
+    allowed-domains: []
+    # Emails that can access Admin panel (bootstrap + local testing). Example: [admin@company.com]
+    admin-emails: []
+    require-allowed-user-list: ${REQUIRE_ALLOWED_USER_LIST:false}
+  cleanup:
+    cron: ${CLEANUP_CRON:0 */15 * * * *}
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USER:}
+    password: ${SMTP_PASSWORD:}
+    from: ${MAIL_FROM:noreply@localhost}

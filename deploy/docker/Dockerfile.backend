@@ -1,0 +1,22 @@
+# Build stage – uses Gradle image so no wrapper needed in repo
+FROM gradle:8.7-jdk17-alpine AS builder
+WORKDIR /app
+
+COPY backend/build.gradle.kts backend/settings.gradle.kts backend/gradle.properties ./
+COPY backend/src ./src
+RUN gradle bootJar --no-daemon -x test
+
+# Run stage
+FROM eclipse-temurin:17-jre-alpine
+WORKDIR /app
+
+RUN adduser -D -u 1000 cyph
+USER cyph
+
+COPY --from=builder /app/build/libs/cyph-backend-*.jar app.jar
+
+# Config can be mounted at /config/application.yml or use env
+ENV SPRING_CONFIG_ADDITIONAL_LOCATION=optional:file:/config/
+EXPOSE 8080
+
+ENTRYPOINT ["java", "-jar", "app.jar"]

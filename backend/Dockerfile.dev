@@ -1,0 +1,12 @@
+# Dev image: run with source mounted; code changes trigger recompile via Gradle continuous build.
+FROM eclipse-temurin:17-jdk
+WORKDIR /app
+
+# Gradle wrapper + build config (src comes from mount so image works for CI/cache)
+COPY gradlew ./
+COPY gradle gradle
+COPY build.gradle.kts settings.gradle.kts ./
+
+EXPOSE 8080
+# Continuous build: recompiles and restarts when source changes (mount ./backend → /app)
+CMD ["./gradlew", "bootRun", "--no-daemon", "-t"]

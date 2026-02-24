@@ -1,0 +1,23 @@
+# Copy to cyph-config.yml and fill in. Mount as /config/application.yml in backend container.
+cyph:
+  site-url: https://cyph.yourcompany.com
+  message:
+    default-ttl-hours: 24
+  auth:
+    # When using OAuth2 (Google or SSO), set so GET /login redirects to the provider (e.g. "google" or "sso")
+    oauth2-login-registration-id:
+    sso:
+      enabled: false
+    allowed-domains: []
+  mail:
+    host: ${SMTP_HOST}
+    port: 587
+    username: ${SMTP_USER}
+    password: ${SMTP_PASSWORD}
+    from: noreply@yourcompany.com
+
+spring:
+  datasource:
+    url: jdbc:postgresql://db:5432/cyph
+    username: cyph
+    password: ${DB_PASSWORD}

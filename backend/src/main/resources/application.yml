@@ -1,0 +1,46 @@
+# Defaults for local development. Override with application-{profile}.yml or env.
+# To add "Login with Google" or "Login with SSO", see README and add
+# spring.security.oauth2.client.registration (google/sso) plus cyph.auth.oauth2-registration-ids.
+spring:
+  application:
+    name: cyph-backend
+  datasource:
+    url: jdbc:h2:mem:cyph;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+  sql:
+    init:
+      mode: always
+  h2:
+    console:
+      enabled: true
+
+server:
+  port: 8080
+
+cyph:
+  site-url: http://localhost:4200
+  message:
+    default-ttl-hours: 24
+  auth:
+    # Add [google] and/or [sso] when you configure OAuth2 (see README). Empty = only admin form.
+    oauth2-registration-ids: []
+    form-login:
+      enabled: true
+      # Override with env: ADMIN_USERNAME, ADMIN_PASSWORD (e.g. export ADMIN_PASSWORD=mysecret)
+      username: ${ADMIN_USERNAME:admin@localhost}
+      password: ${ADMIN_PASSWORD:admin}
+    sso:
+      enabled: false
+      groups-claim: groups
+    allowed-domains: []
+    admin-emails: [admin@localhost]
+    require-allowed-user-list: false
+  cleanup:
+    cron: "0 */15 * * * *"
+  mail:
+    from: noreply@localhost

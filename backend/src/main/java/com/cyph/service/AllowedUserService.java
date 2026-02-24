@@ -1,0 +1,141 @@
+package com.cyph.service;
+
+import com.cyph.config.CyphProperties;
+import com.cyph.domain.AllowedUser;
+import com.cyph.domain.Group;
+import com.cyph.repository.AllowedUserRepository;
+import com.cyph.repository.GroupRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+/**
+ * Manages allowed users: admin-added and SSO. Used for access control and admin panel.
+ */
+@Service
+public class AllowedUserService {
+
+    private final AllowedUserRepository repository;
+    private final GroupRepository groupRepository;
+    private final CyphProperties cyphProperties;
+
+    public AllowedUserService(AllowedUserRepository repository, GroupRepository groupRepository, CyphProperties cyphProperties) {
+        this.repository = repository;
+        this.groupRepository = groupRepository;
+        this.cyphProperties = cyphProperties;
+    }
+
+    /** Check if this email is allowed to sign in (in DB or in config admin list, or domain match when not requiring list). */
+    public boolean isAllowedToSignIn(String email) {
+        if (email == null || email.isBlank()) return false;
+        if (repository.existsByEmailIgnoreCase(email)) return true;
+        if (cyphProperties.getAuth().getAdminEmails().stream().anyMatch(e -> e.equalsIgnoreCase(email))) return true;
+        if (!cyphProperties.getAuth().isRequireAllowedUserList()) {
+            List<String> domains = cyphProperties.getAuth().getAllowedDomains();
+            if (domains.isEmpty()) return true;
+            String domain = email.contains("@") ? email.substring(email.indexOf('@') + 1) : "";
+            return domains.stream().anyMatch(d -> d.equalsIgnoreCase(domain));
+        }
+        return false;
+    }
+
+    /** Check if this email is an admin (config or DB). */
+    public boolean isAdmin(String email) {
+        if (email == null || email.isBlank()) return false;
+        if (cyphProperties.getAuth().getAdminEmails().stream().anyMatch(e -> e.equalsIgnoreCase(email))) return true;
+        return repository.findByEmailIgnoreCase(email).map(AllowedUser::isAdmin).orElse(false);
+    }
+
+    @Transactional
+    public AllowedUser upsertFromLogin(String email, String externalId, AllowedUser.Source source, List<String> groupNamesFromToken) {
+        AllowedUser u = repository.findByEmailIgnoreCase(email)
+                .map(user -> {
+                    user.setExternalId(externalId);
+                    user.setLastLoginAt(Instant.now());
+                    return repository.save(user);
+                })
+                .orElseGet(() -> {
+                    AllowedUser newUser = new AllowedUser();
+                    newUser.setEmail(email);
+                    newUser.setSource(source);
+                    newUser.setExternalId(externalId);
+                    newUser.setLastLoginAt(Instant.now());
+                    newUser.setAdmin(cyphProperties.getAuth().getAdminEmails().stream().anyMatch(e -> e.equalsIgnoreCase(email)));
+                    return repository.save(newUser);
+                });
+        if (groupNamesFromToken != null) {
+            syncGroupsForUser(u, groupNamesFromToken);
+        }
+        return u;
+    }
+
+    /** Replace user's groups with the given list (from SSO claim). Creates groups by name if they don't exist. */
+    @Transactional
+    public void syncGroupsForUser(AllowedUser user, List<String> groupNames) {
+        if (user == null || groupNames == null) return;
+        Set<Group> newGroups = new java.util.HashSet<>();
+        for (String name : groupNames) {
+            if (name == null || name.isBlank()) continue;
+            String trimmed = name.trim();
+            Group g = groupRepository.findByNameIgnoreCase(trimmed)
+                    .orElseGet(() -> {
+                        Group ng = new Group();
+                        ng.setName(trimmed);
+                        return groupRepository.save(ng);
+                    });
+            newGroups.add(g);
+        }
+        user.setGroups(newGroups);
+        repository.save(user);
+    }
+
+    /** Returns group names for the user (empty if none). Used for same-group vs cross-group logic. */
+    @Transactional(readOnly = true)
+    public List<String> getGroupNamesForUser(String email) {
+        return repository.findByEmailIgnoreCase(email)
+                .map(u -> u.getGroups().stream().map(Group::getName).collect(Collectors.toList()))
+                .orElse(List.of());
+    }
+
+    public List<AllowedUserDto> listAll() {
+        return repository.findAllByOrderByCreatedAtDesc().stream()
+                .map(u -> new AllowedUserDto(u.getEmail(), u.getSource().name(), u.getExternalId(), u.isAdmin(), u.getCreatedAt(), u.getLastLoginAt()))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public Optional<AllowedUser> addByAdmin(String email) {
+        if (repository.existsByEmailIgnoreCase(email)) return repository.findByEmailIgnoreCase(email);
+        AllowedUser u = new AllowedUser();
+        u.setEmail(email.trim());
+        u.setSource(AllowedUser.Source.ADMIN_ADDED);
+        u.setAdmin(false);
+        return Optional.of(repository.save(u));
+    }
+
+    @Transactional
+    public boolean removeByAdmin(String email) {
+        return repository.findByEmailIgnoreCase(email)
+                .map(u -> {
+                    repository.delete(u);
+                    return true;
+                })
+                .orElse(false);
+    }
+
+    @Transactional
+    public void setAdmin(String email, boolean admin) {
+        repository.findByEmailIgnoreCase(email).ifPresent(u -> {
+            u.setAdmin(admin);
+            repository.save(u);
+        });
+    }
+
+    public static record AllowedUserDto(String email, String source, String externalId, boolean admin, Instant createdAt, Instant lastLoginAt) {}
+}

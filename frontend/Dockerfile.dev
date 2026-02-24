@@ -1,0 +1,10 @@
+# Dev image: run with source mounted; proxy targets backend service. Use node_modules volume.
+FROM node:20-alpine
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+EXPOSE 4200
+# CYPH_API_TARGET=http://backend:8080 set in docker-compose; proxy.conf.js forwards Set-Cookie for session
+ENTRYPOINT ["sh", "-c", "npm install && npm start -- --host 0.0.0.0"]

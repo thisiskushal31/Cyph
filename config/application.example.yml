@@ -1,0 +1,20 @@
+# Copy this to backend/src/main/resources/application.yml or mount in container.
+# See backend/src/main/resources/application.example.yml for full template and env vars.
+
+cyph:
+  site-url: https://cyph.yourcompany.com
+  message:
+    default-ttl-hours: 24
+  auth:
+    sso:
+      enabled: true
+      issuer-uri: https://idp.yourcompany.com
+      client-id: ${OIDC_CLIENT_ID}
+      client-secret: ${OIDC_CLIENT_SECRET}
+    allowed-domains: ["yourcompany.com"]
+  mail:
+    host: ${SMTP_HOST}
+    port: 587
+    username: ${SMTP_USER}
+    password: ${SMTP_PASSWORD}
+    from: noreply@yourcompany.com

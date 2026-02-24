@@ -1,0 +1,61 @@
+# Cyph – local dev with persistent DB and live code updates.
+# One command: docker compose up
+# App: http://localhost:4200  Backend: http://localhost:8080  DB: postgres (internal)
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: cyph
+      POSTGRES_USER: cyph
+      POSTGRES_PASSWORD: cyph
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cyph"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/cyph
+      SPRING_DATASOURCE_USERNAME: cyph
+      SPRING_DATASOURCE_PASSWORD: cyph
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
+      SPRING_H2_CONSOLE_ENABLED: "false"
+      CYPH_SITE_URL: http://localhost:4200
+      # Session cookie for browser at localhost:4200 (proxy forwards; backend sees backend:8080)
+      SERVER_SERVLET_SESSION_COOKIE_DOMAIN: localhost
+      SERVER_SERVLET_SESSION_COOKIE_PATH: /
+    volumes:
+      - ./backend:/app
+      - backend_gradle:/app/.gradle
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "4200:4200"
+    environment:
+      CYPH_API_TARGET: http://backend:8080
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  backend_gradle:
+  frontend_node_modules:

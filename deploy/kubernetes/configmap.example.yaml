@@ -1,0 +1,13 @@
+# Example ConfigMap. Replace values and create as cyph-config. Do not put secrets here.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cyph-config
+data:
+  SITE_URL: "https://cyph.yourcompany.com"
+  # When OAuth2 is configured, set to the registration id used for login (e.g. "google" or "sso")
+  # CYPH_AUTH_OAUTH2_LOGIN_REGISTRATION_ID: "sso"
+  DB_HOST: "postgres"
+  DB_PORT: "5432"
+  DB_NAME: "cyph"
+  SSO_ENABLED: "false"

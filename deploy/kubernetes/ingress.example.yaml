@@ -1,0 +1,53 @@
+# Example Ingress: single host so frontend and backend share origin (cookies, relative URLs).
+# Route /api, /login, /logout, /oauth2 to backend; everything else to frontend.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cyph
+  annotations:
+    # Adjust for your ingress controller (nginx, traefik, etc.)
+    # nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: cyph.yourcompany.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: cyph-backend
+                port:
+                  number: 80
+          - path: /login
+            pathType: Prefix
+            backend:
+              service:
+                name: cyph-backend
+                port:
+                  number: 80
+          - path: /logout
+            pathType: Prefix
+            backend:
+              service:
+                name: cyph-backend
+                port:
+                  number: 80
+          - path: /oauth2
+            pathType: Prefix
+            backend:
+              service:
+                name: cyph-backend
+                port:
+                  number: 80
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cyph-frontend
+                port:
+                  number: 80
+  # tls:
+  #   - hosts: [cyph.yourcompany.com]
+  #     secretName: cyph-tls

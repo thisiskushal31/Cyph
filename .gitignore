@@ -1,0 +1,18 @@
+# Backend
+backend/build/
+backend/.gradle/
+backend/out/
+!backend/src/main/resources/application.yml
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+
+# Config (secrets)
+deploy/cyph-config.yml
+
+# IDE / OS
+.idea/
+*.iml
+.DS_Store
