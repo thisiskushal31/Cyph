@@ -1,16 +1,21 @@
-# Backend
+# Backend (Java / Gradle)
 backend/build/
 backend/.gradle/
 backend/out/
+backend/bin/
+!backend/gradle/wrapper/gradle-wrapper.jar
 !backend/src/main/resources/application.yml
+!backend/src/main/resources/application-*.yml
 
-# Frontend
+# Frontend (Node / Angular)
 frontend/node_modules/
 frontend/dist/
 frontend/.angular/
+frontend/*.log
 
 # Config (secrets)
 deploy/cyph-config.yml
+.env
 
 # IDE / OS
 .idea/

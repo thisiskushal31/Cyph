@@ -1,7 +1,7 @@
 package com.cyph.api;
 
 import com.cyph.api.dto.SendSecretRequest;
-import com.cyph.service.SecretMessageService.ViewResult;
+import com.cyph.service.AllowedUserService;
 import com.cyph.service.SecretMessageService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -11,7 +11,9 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * REST API for sending and viewing secret messages.
@@ -22,9 +24,30 @@ import java.util.Map;
 public class SecretMessageController {
 
     private final SecretMessageService secretMessageService;
+    private final AllowedUserService allowedUserService;
 
-    public SecretMessageController(SecretMessageService secretMessageService) {
+    public SecretMessageController(SecretMessageService secretMessageService, AllowedUserService allowedUserService) {
         this.secretMessageService = secretMessageService;
+        this.allowedUserService = allowedUserService;
+    }
+
+    /**
+     * List of users that can be selected as recipients (for dropdown on Send page).
+     * Any authenticated user can call this.
+     */
+    @GetMapping("/recipients")
+    public ResponseEntity<List<Map<String, String>>> recipients(
+            Authentication authentication,
+            @AuthenticationPrincipal OidcUser oidcUser,
+            @AuthenticationPrincipal OAuth2User oauth2User) {
+        String current = emailFromPrincipal(oidcUser, oauth2User, authentication);
+        if (current == null || current.isBlank()) {
+            return ResponseEntity.status(401).build();
+        }
+        List<Map<String, String>> list = allowedUserService.listAll().stream()
+                .map(dto -> Map.<String, String>of("email", dto.email(), "source", dto.source()))
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(list);
     }
 
     @PostMapping("/send")

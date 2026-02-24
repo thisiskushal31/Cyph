@@ -1,0 +1,6 @@
+{
+  "/api": { "target": "http://backend:8080", "secure": false },
+  "/oauth2": { "target": "http://backend:8080", "secure": false },
+  "/login": { "target": "http://backend:8080", "secure": false },
+  "/logout": { "target": "http://backend:8080", "secure": false }
+}
