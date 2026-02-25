@@ -15,17 +15,29 @@ function forwardSetCookie(proxyRes) {
   });
 }
 
-const proxyEntry = (context) => ({
+const proxyEntry = (context, options = {}) => ({
   context,
   target,
   secure: false,
   changeOrigin: true,
   onProxyRes: forwardSetCookie,
+  ...options,
 });
+
+/**
+ * GET /login and GET /login?... must not be proxied: the browser requests the page on reload,
+ * and the dev server should serve index.html so the Angular SPA loads and the router shows the login view.
+ * Only POST /login (form submit) and OAuth callbacks should go to the backend.
+ */
+function loginBypass(req, res, proxyOptions) {
+  if (req.method === 'GET' && (req.url === '/login' || req.url.startsWith('/login?'))) {
+    return '/index.html';
+  }
+}
 
 module.exports = [
   proxyEntry(['/api']),
   proxyEntry(['/oauth2']),
-  proxyEntry(['/login']),
+  proxyEntry(['/login'], { bypass: loginBypass }),
   proxyEntry(['/logout']),
 ];

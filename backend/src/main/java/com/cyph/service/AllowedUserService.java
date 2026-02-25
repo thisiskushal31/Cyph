@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -62,11 +61,16 @@ public class AllowedUserService {
         return false;
     }
 
-    /** Check if this email is an admin (config or DB). */
-    public boolean isAdmin(String email) {
-        if (email == null || email.isBlank()) return false;
-        if (cyphProperties.getAuth().getAdminEmails().stream().anyMatch(e -> e.equalsIgnoreCase(email))) return true;
-        return repository.findByEmailIgnoreCase(email).map(AllowedUser::isAdmin).orElse(false);
+    /** Check if this email or form-login username is an admin (config or DB). */
+    public boolean isAdmin(String emailOrUsername) {
+        if (emailOrUsername == null || emailOrUsername.isBlank()) return false;
+        if (cyphProperties.getAuth().getAdminEmails().stream().anyMatch(e -> e.equalsIgnoreCase(emailOrUsername))) return true;
+        if (cyphProperties.getAuth().getFormLogin().isEnabled()) {
+            String formUsername = cyphProperties.getAuth().getFormLogin().getUsername();
+            String effectiveFormUser = (formUsername != null && !formUsername.isBlank()) ? formUsername.trim() : "admin@localhost";
+            if (effectiveFormUser.equalsIgnoreCase(emailOrUsername)) return true;
+        }
+        return repository.findByEmailIgnoreCase(emailOrUsername).map(AllowedUser::isAdmin).orElse(false);
     }
 
     @Transactional
@@ -138,7 +142,11 @@ public class AllowedUserService {
         if (addedBy != null && !addedBy.isBlank()) u.setAddedBy(addedBy.trim());
         u = repository.save(u);
         if (groupName != null && !groupName.isBlank()) {
-            syncGroupsForUser(u, List.of(groupName.trim()));
+            String trimmed = groupName.trim();
+            if (!groupRepository.existsByNameIgnoreCase(trimmed)) {
+                throw new IllegalArgumentException("Group not found. Create the group first in Admin > Groups.");
+            }
+            syncGroupsForUser(u, List.of(trimmed));
         }
         return Optional.of(u);
     }

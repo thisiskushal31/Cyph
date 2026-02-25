@@ -34,6 +34,10 @@ services:
       SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
       SPRING_H2_CONSOLE_ENABLED: "false"
       CYPH_SITE_URL: http://localhost:4200
+      # Super-admin form login and admin list (single source for Docker)
+      ADMIN_USERNAME: admin@localhost
+      ADMIN_PASSWORD: admin
+      CYPH_AUTH_ADMIN_EMAILS_0: admin@localhost
       # Session cookie for browser at localhost:4200 (proxy forwards; backend sees backend:8080)
       SERVER_SERVLET_SESSION_COOKIE_DOMAIN: localhost
       SERVER_SERVLET_SESSION_COOKIE_PATH: /

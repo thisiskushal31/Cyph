@@ -51,7 +51,19 @@ public class AuditLog {
     @Column(name = "same_group")
     private Boolean sameGroup;
 
+    /** For LOGIN events: the user who logged in (email or username). */
+    @Column(name = "actor_identifier", length = 255)
+    private String actorIdentifier;
+
     public AuditLog() {
+    }
+
+    public String getActorIdentifier() {
+        return actorIdentifier;
+    }
+
+    public void setActorIdentifier(String actorIdentifier) {
+        this.actorIdentifier = actorIdentifier;
     }
 
     public Long getId() {

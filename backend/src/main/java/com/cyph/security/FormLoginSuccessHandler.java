@@ -2,6 +2,7 @@ package com.cyph.security;
 
 import com.cyph.config.CyphProperties;
 import com.cyph.service.AllowedUserService;
+import com.cyph.service.AuditService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -26,17 +27,13 @@ public class FormLoginSuccessHandler implements AuthenticationSuccessHandler {
 
     private final CyphProperties cyphProperties;
     private final AllowedUserService allowedUserService;
+    private final AuditService auditService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public FormLoginSuccessHandler(CyphProperties cyphProperties, AllowedUserService allowedUserService) {
+    public FormLoginSuccessHandler(CyphProperties cyphProperties, AllowedUserService allowedUserService, AuditService auditService) {
         this.cyphProperties = cyphProperties;
         this.allowedUserService = allowedUserService;
-    }
-
-    /** For use when SecurityConfig instantiates without the bean (allowedUserService will be null). */
-    public FormLoginSuccessHandler(CyphProperties cyphProperties) {
-        this.cyphProperties = cyphProperties;
-        this.allowedUserService = null;
+        this.auditService = auditService;
     }
 
     @Override
@@ -46,6 +43,8 @@ public class FormLoginSuccessHandler implements AuthenticationSuccessHandler {
         if (allowedUserService != null && authentication != null && authentication.getName() != null && !authentication.getName().isBlank()) {
             allowedUserService.ensureUserExists(authentication.getName());
         }
+        String who = authentication != null ? authentication.getName() : null;
+        auditService.logLogin(who);
 
         // Force session creation so Set-Cookie (JSESSIONID) is added before we commit the response.
         request.getSession(true);

@@ -58,7 +58,7 @@ public class CyphOAuth2LoginSuccessHandler extends SavedRequestAwareAuthenticati
                 : AllowedUser.Source.ADMIN_ADDED;
         List<String> groupNames = extractGroupNamesFromToken(authentication);
         allowedUserService.upsertFromLogin(email, externalId, source, groupNames);
-        auditService.logLogin();
+        auditService.logLogin(email);
         super.onAuthenticationSuccess(request, response, authentication);
     }
 

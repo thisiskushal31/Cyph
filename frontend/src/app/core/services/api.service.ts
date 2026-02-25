@@ -57,6 +57,8 @@ export interface AuditLogEntry {
   senderGroupNames?: string;
   recipientGroupNames?: string;
   sameGroup?: boolean;
+  /** For LOGIN events: the user who logged in (email or username). */
+  actorIdentifier?: string | null;
 }
 
 export interface AuditLogPage {
@@ -64,6 +66,18 @@ export interface AuditLogPage {
   totalElements: number;
   totalPages: number;
   number?: number;
+}
+
+export interface GroupDto {
+  id: number;
+  name: string;
+}
+
+export interface GroupPermissionDto {
+  fromGroupId: number;
+  fromGroupName: string;
+  toGroupId: number;
+  toGroupName: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -119,5 +133,32 @@ export class ApiService {
     return this.http.get<AuditLogPage>(`${this.base}/admin/audit-log?page=${page}&size=${size}`, {
       withCredentials: true,
     });
+  }
+
+  listGroups(): Observable<GroupDto[]> {
+    return this.http.get<GroupDto[]>(`${this.base}/admin/groups`, { withCredentials: true });
+  }
+
+  createGroup(name: string): Observable<GroupDto> {
+    return this.http.post<GroupDto>(`${this.base}/admin/groups`, { name }, { withCredentials: true });
+  }
+
+  listGroupPermissions(): Observable<GroupPermissionDto[]> {
+    return this.http.get<GroupPermissionDto[]>(`${this.base}/admin/group-permissions`, { withCredentials: true });
+  }
+
+  addGroupPermission(fromGroupName: string, toGroupName: string): Observable<GroupPermissionDto> {
+    return this.http.post<GroupPermissionDto>(
+      `${this.base}/admin/group-permissions`,
+      { fromGroupName, toGroupName },
+      { withCredentials: true }
+    );
+  }
+
+  removeGroupPermission(fromGroupId: number, toGroupId: number): Observable<void> {
+    return this.http.delete<void>(
+      `${this.base}/admin/group-permissions?fromGroupId=${fromGroupId}&toGroupId=${toGroupId}`,
+      { withCredentials: true }
+    );
   }
 }

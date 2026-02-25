@@ -23,10 +23,11 @@ public class AuditService {
     }
 
     @Transactional
-    public void logLogin() {
+    public void logLogin(String actorIdentifier) {
         AuditLog e = new AuditLog();
         e.setEventType(AuditLog.EventType.LOGIN);
         e.setOccurredAt(Instant.now());
+        e.setActorIdentifier(actorIdentifier != null && !actorIdentifier.isBlank() ? actorIdentifier : null);
         repository.save(e);
     }
 
@@ -72,10 +73,12 @@ public class AuditService {
                 a.getMessageId(),
                 a.getSenderGroupNames(),
                 a.getRecipientGroupNames(),
-                a.getSameGroup()
+                a.getSameGroup(),
+                a.getActorIdentifier()
         );
     }
 
     public static record AuditLogDto(String eventType, Instant occurredAt, String messageId,
-                                     String senderGroupNames, String recipientGroupNames, Boolean sameGroup) {}
+                                     String senderGroupNames, String recipientGroupNames, Boolean sameGroup,
+                                     String actorIdentifier) {}
 }

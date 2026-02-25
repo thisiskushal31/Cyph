@@ -8,7 +8,7 @@ import { ApiService } from '../../core/services/api.service';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="mx-auto max-w-2xl px-4 py-12 sm:px-6 lg:px-8">
+    <div class="w-full max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
       @if (loading) {
         <p class="text-slate-600">Loading…</p>
       } @else if (locked) {

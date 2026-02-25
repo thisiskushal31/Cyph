@@ -53,17 +53,14 @@ public class FormLoginUserDetailsService implements UserDetailsService {
                     .roles(roles.toArray(new String[0]))
                     .build();
         }
-        // 2) Config-based single admin
+        // 2) Config-based single super admin (from cyph.auth.form-login or env ADMIN_USERNAME/ADMIN_PASSWORD)
         CyphProperties.Auth.FormLogin form = cyphProperties.getAuth().getFormLogin();
-        String configUsername = form.getUsername();
-        if (configUsername == null || configUsername.isBlank()) {
-            log.warn("Form login: no user found for [{}]", trimmed);
-            throw new UsernameNotFoundException("User not found");
-        }
+        String configUsername = (form.getUsername() != null && !form.getUsername().isBlank())
+                ? form.getUsername().trim() : "admin@localhost";
         String configPassword = (form.getPassword() != null && !form.getPassword().isBlank())
                 ? form.getPassword() : "admin";
         if (!configUsername.equalsIgnoreCase(trimmed)) {
-            log.warn("Form login: user not found (requested=[{}])", trimmed);
+            log.warn("Form login: user not found (requested=[{}], config username=[{}])", trimmed, configUsername);
             throw new UsernameNotFoundException("User not found");
         }
         log.info("Form login: loaded config user [{}]", configUsername);

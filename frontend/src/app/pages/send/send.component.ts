@@ -8,7 +8,7 @@ import { ApiService, RecipientOption } from '../../core/services/api.service';
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="mx-auto max-w-2xl px-4 py-12 sm:px-6 lg:px-8">
+    <div class="w-full max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
       <h1 class="text-2xl font-bold text-slate-900">Send a secret message</h1>
       <p class="mt-1 text-slate-600">Only the recipient can open it, once. Message expires after the configured time.</p>
 

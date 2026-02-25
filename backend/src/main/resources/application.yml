@@ -21,6 +21,11 @@ spring:
 
 server:
   port: 8080
+  servlet:
+    session:
+      cookie:
+        path: /
+        same-site: lax
 
 cyph:
   site-url: http://localhost:4200
@@ -38,6 +43,8 @@ cyph:
       enabled: false
       groups-claim: groups
     allowed-domains: []
+    # One super admin only (local: admin@localhost; production: set your super-admin email here).
+    # All other admins are made via Admin panel (toggle Admin on a user); no extra emails in config.
     admin-emails: [admin@localhost]
     require-allowed-user-list: false
   cleanup:

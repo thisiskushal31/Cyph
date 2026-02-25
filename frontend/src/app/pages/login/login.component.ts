@@ -1,8 +1,8 @@
 import { Component, OnInit, inject } from '@angular/core';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { ApiService, AuthMethodsResponse } from '../../core/services/api.service';
 
 /**
@@ -15,7 +15,7 @@ import { ApiService, AuthMethodsResponse } from '../../core/services/api.service
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',
 })
@@ -93,54 +93,25 @@ export class LoginComponent implements OnInit {
   onAdminSubmit(): void {
     this.formError = '';
     this.submitting = true;
-    const body = new URLSearchParams();
-    body.set('username', this.username.trim());
-    body.set('password', this.password);
-    body.set('redirect', this.redirectUrl);
-
-    console.log('[Cyph Login] POST /login', { username: this.username.trim(), redirectUrl: this.redirectUrl });
+    const body = {
+      username: this.username.trim(),
+      password: this.password,
+      redirectUrl: this.redirectUrl,
+    };
 
     this.http
-      .post('/login', body.toString(), {
-        headers: new HttpHeaders().set('Content-Type', 'application/x-www-form-urlencoded'),
+      .post<{ redirectUrl: string }>('/api/auth/login', body, {
         withCredentials: true,
-        observe: 'response',
-        responseType: 'text',
       })
       .subscribe({
-        next: (res) => {
+        next: (data) => {
           this.submitting = false;
-          console.log('[Cyph Login] Response', {
-            status: res.status,
-            statusText: res.statusText,
-            bodyLength: res.body?.length ?? 0,
-            bodyPreview: res.body?.slice(0, 120) ?? '',
-            hasSetCookie: res.headers.has('Set-Cookie'),
-          });
-          if (res.status === 200 && res.body) {
-            try {
-              const data = JSON.parse(res.body) as { redirectUrl?: string };
-              const url = data?.redirectUrl ?? this.redirectUrl;
-              const target = url.startsWith('/') ? url : '/' + url;
-              console.log('[Cyph Login] Success, navigating to', target);
-              this.router.navigateByUrl(target);
-              return;
-            } catch (e) {
-              console.warn('[Cyph Login] Response was 200 but body is not JSON', e);
-            }
-          }
-          console.warn('[Cyph Login] Treating as failure (non-200 or non-JSON)');
-          this.formError = 'Invalid username or password.';
+          const target = data?.redirectUrl?.startsWith('/') ? data.redirectUrl : '/' + (data?.redirectUrl ?? this.redirectUrl);
+          this.router.navigateByUrl(target);
         },
         error: (err) => {
           this.submitting = false;
-          console.error('[Cyph Login] Request failed', {
-            status: err?.status,
-            statusText: err?.statusText,
-            message: err?.message,
-            error: err,
-          });
-          this.formError = 'Invalid username or password.';
+          this.formError = err?.error?.message || 'Invalid username or password.';
         },
       });
   }

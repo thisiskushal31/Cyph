@@ -30,19 +30,22 @@ public class SecretMessageService {
     private final AllowedUserService allowedUserService;
     private final AuditService auditService;
     private final CyphProperties cyphProperties;
+    private final GroupSendPermissionService groupSendPermissionService;
 
     public SecretMessageService(SecretMessageRepository repository,
                                 EncryptionService encryptionService,
                                 MailSenderService mailSenderService,
                                 AllowedUserService allowedUserService,
                                 AuditService auditService,
-                                CyphProperties cyphProperties) {
+                                CyphProperties cyphProperties,
+                                GroupSendPermissionService groupSendPermissionService) {
         this.repository = repository;
         this.encryptionService = encryptionService;
         this.mailSenderService = mailSenderService;
         this.allowedUserService = allowedUserService;
         this.auditService = auditService;
         this.cyphProperties = cyphProperties;
+        this.groupSendPermissionService = groupSendPermissionService;
     }
 
     public static record ViewResult(String message, boolean locked) {}
@@ -59,7 +62,8 @@ public class SecretMessageService {
         // Same group if they share at least one group, or both have no groups (e.g. admin-added users)
         boolean sameGroup = senderSet.isEmpty() && recipientGroups.isEmpty()
                 || recipientGroups.stream().anyMatch(senderSet::contains);
-        boolean locked = !sameGroup;
+        // Cross-group: locked unless there is an explicit send permission from sender's group to recipient's group
+        boolean locked = !sameGroup && !groupSendPermissionService.canSendTo(senderGroups, recipientGroups);
 
         EncryptionService.EncryptionResult result = encryptionService.encrypt(plaintext.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 

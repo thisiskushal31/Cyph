@@ -3,7 +3,11 @@ package com.cyph.security;
 import com.cyph.config.CyphProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.config.Customizer;
@@ -39,6 +43,16 @@ public class SecurityConfig {
     }
 
     @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
+
+    @Bean
+    public SecurityContextRepository securityContextRepository() {
+        return new HttpSessionSecurityContextRepository();
+    }
+
+    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .cors(Customizer.withDefaults())
@@ -50,7 +64,7 @@ public class SecurityConfig {
         boolean anyAuthEnabled = (oauth2Enabled && successHandler.isPresent()) || formLoginEnabled;
 
         http.authorizeHttpRequests(auth -> {
-            auth.requestMatchers("/api/public/**", "/actuator/health", "/error", "/login", "/logout", "/oauth2/**").permitAll();
+            auth.requestMatchers("/api/public/**", "/api/auth/login", "/actuator/health", "/error", "/login", "/logout", "/oauth2/**").permitAll();
             if (anyAuthEnabled) {
                 auth.anyRequest().authenticated();
             } else {
@@ -70,7 +84,7 @@ public class SecurityConfig {
                     .loginProcessingUrl("/login")
                     .usernameParameter("username")
                     .passwordParameter("password")
-                    .successHandler(formLoginSuccessHandler.orElseGet(() -> new FormLoginSuccessHandler(cyphProperties)))
+                    .successHandler(formLoginSuccessHandler.orElseThrow())
                     .failureHandler(new FormLoginFailureHandler(cyphProperties)));
         }
 
