@@ -43,9 +43,8 @@ cyph:
       enabled: false
       groups-claim: groups
     allowed-domains: []
-    # One super admin only (local: admin@localhost; production: set your super-admin email here).
-    # All other admins are made via Admin panel (toggle Admin on a user); no extra emails in config.
-    admin-emails: [admin@localhost]
+    # Super-admin is seeded from form-login username/password (ADMIN_USERNAME / ADMIN_PASSWORD in Docker).
+    # Admin status is stored in DB; only the seeded super-admin cannot be deleted or demoted.
     require-allowed-user-list: false
   cleanup:
     cron: "0 */15 * * * *"

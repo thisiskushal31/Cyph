@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Cyph Password Manager",
+  "version": "0.1.0",
+  "description": "Organization-managed password manager. Authenticate to your Cyph instance and access credentials pushed by your admin.",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": false
+  }
+}

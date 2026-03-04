@@ -67,7 +67,7 @@ cyph:
   message:
     default-ttl-hours: 24
   auth:
-    # OAuth2 buttons on login page (e.g. [sso, google]). Each must have spring.security.oauth2.client.registration.{id} configured.
+    # OAuth2 buttons on login page. Provider can be Keycloak, Google, or any other IdP. Each id must have spring.security.oauth2.client.registration.{id} configured.
     oauth2-registration-ids: [sso, google]
     form-login:
       enabled: ${FORM_LOGIN_ENABLED:false}
@@ -80,8 +80,8 @@ cyph:
       client-secret: ${OIDC_CLIENT_SECRET:}
       scope: openid email profile
     allowed-domains: []
-    # Emails that can access Admin panel (bootstrap + local testing). Example: [admin@company.com]
-    admin-emails: []
+    # Super-admin is seeded from form-login username/password (ADMIN_USERNAME / ADMIN_PASSWORD).
+    # Other admins are managed in the Admin panel. admin-emails is unused when using DB-backed admin.
     require-allowed-user-list: ${REQUIRE_ALLOWED_USER_LIST:false}
   cleanup:
     cron: ${CLEANUP_CRON:0 */15 * * * *}

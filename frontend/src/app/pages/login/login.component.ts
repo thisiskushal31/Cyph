@@ -3,15 +3,9 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
-import { ApiService, AuthMethodsResponse } from '../../core/services/api.service';
+import { ApiService, API_BASE, getApiErrorMessage, AuthMethodsResponse } from '../../core/services/api.service';
 
-/**
- * Login page: one screen with three sign-in options.
- * 1. Username & password (admin account)
- * 2. Sign in with SSO (organization IdP)
- * 3. Sign in with Google
- * SSO and Google buttons are shown always; if not configured in backend they appear disabled with a hint.
- */
+/** Login page: username/password (left) and SSO/Google buttons (right) in one card. */
 @Component({
   selector: 'app-login',
   standalone: true,
@@ -54,15 +48,22 @@ export class LoginComponent implements OnInit {
   }
 
   isSsoConfigured(): boolean {
-    return this.oauth2Ids.some((id) => id.toLowerCase() === 'sso');
+    return this.oauth2Ids.some((id) => {
+      const lower = id.toLowerCase();
+      return lower === 'sso' || lower === 'keycloak';
+    });
   }
 
   isGoogleConfigured(): boolean {
     return this.oauth2Ids.some((id) => id.toLowerCase() === 'google');
   }
 
+  /** SSO or Keycloak (Keycloak used for local SSO testing). */
   getSsoRegistrationId(): string | null {
-    return this.oauth2Ids.find((id) => id.toLowerCase() === 'sso') ?? null;
+    return this.oauth2Ids.find((id) => {
+      const lower = id.toLowerCase();
+      return lower === 'sso' || lower === 'keycloak';
+    }) ?? null;
   }
 
   getGoogleRegistrationId(): string | null {
@@ -85,7 +86,7 @@ export class LoginComponent implements OnInit {
 
   labelFor(registrationId: string): string {
     const lower = registrationId.toLowerCase();
-    if (lower === 'sso') return 'SSO';
+    if (lower === 'sso' || lower === 'keycloak') return 'SSO';
     if (lower === 'google') return 'Google';
     return registrationId.charAt(0).toUpperCase() + registrationId.slice(1);
   }
@@ -100,7 +101,7 @@ export class LoginComponent implements OnInit {
     };
 
     this.http
-      .post<{ redirectUrl: string }>('/api/auth/login', body, {
+      .post<{ redirectUrl: string }>(`${API_BASE}/auth/login`, body, {
         withCredentials: true,
       })
       .subscribe({
@@ -111,7 +112,7 @@ export class LoginComponent implements OnInit {
         },
         error: (err) => {
           this.submitting = false;
-          this.formError = err?.error?.message || 'Invalid username or password.';
+          this.formError = getApiErrorMessage(err, 'Invalid username or password.');
         },
       });
   }

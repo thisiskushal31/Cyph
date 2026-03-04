@@ -21,7 +21,13 @@ public class AuditLog {
         MESSAGE_SENT_SAME_GROUP,
         MESSAGE_SENT_CROSS_GROUP,
         MESSAGE_VIEWED,
-        MESSAGE_DELETED
+        MESSAGE_DELETED,
+        USER_CREATED,
+        USER_DELETED,
+        USER_ADMIN_CHANGED,
+        GROUP_CREATED,
+        GROUP_PERMISSION_ADDED,
+        GROUP_PERMISSION_REMOVED
     }
 
     @Id
@@ -51,11 +57,35 @@ public class AuditLog {
     @Column(name = "same_group")
     private Boolean sameGroup;
 
-    /** For LOGIN events: the user who logged in (email or username). */
+    /** Who performed the action (e.g. admin email for user/group events, principal for LOGIN). */
     @Column(name = "actor_identifier", length = 255)
     private String actorIdentifier;
 
+    /** Target of the action (e.g. user email for user events, group name for group events). */
+    @Column(name = "target_identifier", length = 255)
+    private String targetIdentifier;
+
+    /** Optional extra details (e.g. "admin=true", "fromGroup→toGroup"). */
+    @Column(name = "details", length = 512)
+    private String details;
+
     public AuditLog() {
+    }
+
+    public String getTargetIdentifier() {
+        return targetIdentifier;
+    }
+
+    public void setTargetIdentifier(String targetIdentifier) {
+        this.targetIdentifier = targetIdentifier;
+    }
+
+    public String getDetails() {
+        return details;
+    }
+
+    public void setDetails(String details) {
+        this.details = details;
     }
 
     public String getActorIdentifier() {

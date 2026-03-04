@@ -1,11 +1,27 @@
 # Cyph – local dev with persistent DB and live code updates.
 # One command: docker compose up
 # App: http://localhost:4200  Backend: http://localhost:8080  DB: postgres (internal)
+# Keycloak (local SSO): http://localhost:8180  Admin: admin / admin
 #
 # Live reload: frontend uses ng serve --poll 2000; backend polls src/ every 2s and recompiles/restarts.
 # After changing Dockerfile.dev or entrypoint scripts, run: docker compose up --build
 
 services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    command: start --import-realm
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      # Use host.docker.internal so the issuer in the discovery document matches the backend's issuer-uri (backend uses host.docker.internal to reach Keycloak).
+      KC_HOSTNAME: host.docker.internal
+      KC_HOSTNAME_PORT: 8180
+      KC_HTTP_ENABLED: "true"
+    ports:
+      - "8180:8080"
+    volumes:
+      - ./config/keycloak/cyph-realm.json:/opt/keycloak/data/import/cyph-realm.json
+
   db:
     image: postgres:16-alpine
     environment:
@@ -34,19 +50,25 @@ services:
       SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
       SPRING_H2_CONSOLE_ENABLED: "false"
       CYPH_SITE_URL: http://localhost:4200
-      # Super-admin form login and admin list (single source for Docker)
+      # Super-admin: created/updated in DB on startup from these env vars (production: use secret manager).
       ADMIN_USERNAME: admin@localhost
       ADMIN_PASSWORD: admin
-      CYPH_AUTH_ADMIN_EMAILS_0: admin@localhost
-      # Session cookie for browser at localhost:4200 (proxy forwards; backend sees backend:8080)
       SERVER_SERVLET_SESSION_COOKIE_DOMAIN: localhost
       SERVER_SERVLET_SESSION_COOKIE_PATH: /
+      # Keycloak (local SSO only). Backend uses host.docker.internal so browser and backend both reach Keycloak at localhost:8180.
+      CYPH_AUTH_OAUTH2_REGISTRATION_IDS_0: keycloak
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_ID: cyph-backend
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_SECRET: cyph-backend-secret
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_SCOPE: openid,email,profile
+      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI: http://host.docker.internal:8180/realms/cyph
     volumes:
       - ./backend:/app
       - backend_gradle:/app/.gradle
     depends_on:
       db:
         condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   frontend:
     build:

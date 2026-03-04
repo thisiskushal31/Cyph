@@ -1,5 +1,6 @@
 package com.cyph.security;
 
+import com.cyph.api.ApiV1;
 import com.cyph.config.CyphProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -56,7 +57,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .cors(Customizer.withDefaults())
-                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**", "/login"));
+                .csrf(csrf -> csrf.ignoringRequestMatchers(ApiV1.BASE + "/**", "/login"));
 
         String loginPage = cyphProperties.getSiteUrl() + "/login";
         boolean oauth2Enabled = clientRegistrationRepository.isPresent();
@@ -64,7 +65,7 @@ public class SecurityConfig {
         boolean anyAuthEnabled = (oauth2Enabled && successHandler.isPresent()) || formLoginEnabled;
 
         http.authorizeHttpRequests(auth -> {
-            auth.requestMatchers("/api/public/**", "/api/auth/login", "/actuator/health", "/error", "/login", "/logout", "/oauth2/**").permitAll();
+            auth.requestMatchers(ApiV1.BASE + "/public/**", ApiV1.BASE + "/auth/login", "/actuator/health", "/error", "/login", "/logout", "/oauth2/**").permitAll();
             if (anyAuthEnabled) {
                 auth.anyRequest().authenticated();
             } else {

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cyph</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div id="root">
+    <!-- Logged-out: Cyph URL + username + password -->
+    <section id="login-section" class="panel">
+      <h1 class="title">Cyph</h1>
+      <p class="subtitle">Sign in to your organization’s Cyph</p>
+      <form id="login-form">
+        <label for="cyph-url">Cyph URL</label>
+        <input type="url" id="cyph-url" placeholder="https://cyph.your-company.com" required />
+        <label for="username">Username</label>
+        <input type="text" id="username" placeholder="your@email.com" required autocomplete="username" />
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password" />
+        <p id="login-error" class="error" aria-live="polite"></p>
+        <button type="submit" id="login-btn">Sign in</button>
+      </form>
+      <p class="hint">Get the URL and credentials from your admin.</p>
+    </section>
+
+    <!-- Logged-in: list of credentials -->
+    <section id="credentials-section" class="panel hidden">
+      <div class="header-row">
+        <h1 class="title">Credentials</h1>
+        <button type="button" id="logout-btn" class="text-btn">Sign out</button>
+      </div>
+      <p id="credentials-hint" class="subtitle">Passwords pushed by your organization.</p>
+      <div id="credentials-list"></div>
+      <p id="no-credentials" class="empty hidden">No credentials yet. Your admin can push them from Cyph.</p>
+      <p id="credentials-error" class="error hidden" aria-live="polite"></p>
+    </section>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

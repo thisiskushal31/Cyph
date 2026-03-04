@@ -1,68 +1,71 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ApiService, RecipientOption } from '../../core/services/api.service';
+import { ApiService, getApiErrorMessage, RecipientOption } from '../../core/services/api.service';
 
 @Component({
   selector: 'app-send',
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="w-full max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
-      <h1 class="text-2xl font-bold text-slate-900">Send a secret message</h1>
-      <p class="mt-1 text-slate-600">Only the recipient can open it, once. Message expires after the configured time.</p>
+    <div class="w-full max-w-2xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+      <div class="app-card p-6 sm:p-8">
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Send a secret message</h1>
+        <p class="mt-2 text-slate-600">Only the recipient can open it, once. Message expires after the configured time.</p>
 
-      @if (success) {
-        <div class="mt-6 rounded-lg bg-green-50 p-4 text-green-800">
-          Message sent. The recipient will receive an email with the link.
-        </div>
-      }
+        @if (success) {
+          <div class="mt-6 rounded-xl bg-emerald-50 border border-emerald-200/80 p-4 text-emerald-800 text-sm font-medium">
+            Message sent. The recipient will receive an email with the link.
+          </div>
+        }
 
-      @if (error) {
-        <div class="mt-6 rounded-lg bg-red-50 p-4 text-red-800">{{ error }}</div>
-      }
+        @if (error) {
+          <div class="mt-6 rounded-xl bg-red-50 border border-red-200/80 p-4 text-red-800 text-sm">{{ error }}</div>
+        }
 
-      <form (ngSubmit)="onSubmit()" class="mt-6 space-y-4" #f="ngForm">
-        <div>
-          <label for="recipient" class="block text-sm font-medium text-slate-700">Recipient</label>
-          <select
-            id="recipient"
-            name="recipientEmail"
-            [(ngModel)]="selectedEmail"
-            required
-            class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-          >
-            <option value="" disabled>Select a user</option>
-            @for (r of recipients; track r.email) {
-              <option [value]="r.email">{{ recipientLabel(r) }}</option>
+        <form (ngSubmit)="onSubmit()" class="mt-6 space-y-5" #f="ngForm">
+          <div>
+            <label for="recipient" class="block text-sm font-semibold text-slate-700">Recipient</label>
+            <select
+              id="recipient"
+              name="recipientEmail"
+              [(ngModel)]="selectedEmail"
+              required
+              class="app-input mt-2 py-3"
+            >
+              <option value="" disabled>Select a user</option>
+              @for (r of recipients; track r.email) {
+                <option [value]="r.email">{{ recipientLabel(r) }}</option>
+              }
+            </select>
+            @if (recipients.length === 0 && !loadingRecipients) {
+              <p class="mt-2 text-sm text-slate-500">No users in the app yet. Add users in Admin or sign in with SSO/Google.</p>
             }
-          </select>
-          @if (recipients.length === 0 && !loadingRecipients) {
-            <p class="mt-1 text-sm text-slate-500">No users in the app yet. Add users in Admin or sign in with SSO/Google.</p>
-          }
-          @if (loadingRecipients) {
-            <p class="mt-1 text-sm text-slate-500">Loading users…</p>
-          }
-        </div>
-        <div>
-          <label for="message" class="block text-sm font-medium text-slate-700">Message</label>
-          <textarea
-            id="message"
-            name="message"
-            [(ngModel)]="message"
-            required
-            rows="4"
-            class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-          ></textarea>
-        </div>
-        <button
-          type="submit"
-          [disabled]="f.invalid || sending || !selectedEmail"
-          class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
-        >
-          {{ sending ? 'Sending…' : 'Send secret message' }}
-        </button>
-      </form>
+            @if (loadingRecipients) {
+              <p class="mt-2 text-sm text-slate-500">Loading users…</p>
+            }
+          </div>
+          <div>
+            <label for="message" class="block text-sm font-semibold text-slate-700">Message</label>
+            <textarea
+              id="message"
+              name="message"
+              [(ngModel)]="message"
+              required
+              rows="5"
+              placeholder="Type your secret message…"
+              class="app-input mt-2 py-3 resize-y min-h-[120px]"
+            ></textarea>
+          </div>
+          <button
+            type="submit"
+            [disabled]="f.invalid || sending || !selectedEmail"
+            class="app-btn-primary w-full py-3.5"
+          >
+            {{ sending ? 'Sending…' : 'Send secret message' }}
+          </button>
+        </form>
+      </div>
     </div>
   `,
 })
@@ -106,7 +109,7 @@ export class SendComponent implements OnInit {
         this.sending = false;
       },
       error: (err) => {
-        this.error = err?.error?.message || err?.message || 'Failed to send.';
+        this.error = getApiErrorMessage(err, 'Failed to send.');
         this.sending = false;
       },
     });

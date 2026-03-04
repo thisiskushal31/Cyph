@@ -42,16 +42,15 @@ public class AllowedUserService {
                     AllowedUser u = new AllowedUser();
                     u.setEmail(email.trim());
                     u.setSource(AllowedUser.Source.ADMIN_ADDED);
-                    u.setAdmin(cyphProperties.getAuth().getAdminEmails().stream().anyMatch(e -> e.equalsIgnoreCase(email)));
+                    u.setAdmin(isSuperAdmin(email));
                     return repository.save(u);
                 });
     }
 
-    /** Check if this email is allowed to sign in (in DB or in config admin list, or domain match when not requiring list). */
+    /** Check if this email is allowed to sign in (in DB or domain match when not requiring list). */
     public boolean isAllowedToSignIn(String email) {
         if (email == null || email.isBlank()) return false;
         if (repository.existsByEmailIgnoreCase(email)) return true;
-        if (cyphProperties.getAuth().getAdminEmails().stream().anyMatch(e -> e.equalsIgnoreCase(email))) return true;
         if (!cyphProperties.getAuth().isRequireAllowedUserList()) {
             List<String> domains = cyphProperties.getAuth().getAllowedDomains();
             if (domains.isEmpty()) return true;
@@ -61,16 +60,23 @@ public class AllowedUserService {
         return false;
     }
 
-    /** Check if this email or form-login username is an admin (config or DB). */
+    /** Check if this email or form-login username is an admin (DB; super-admin from config is always admin). */
     public boolean isAdmin(String emailOrUsername) {
         if (emailOrUsername == null || emailOrUsername.isBlank()) return false;
-        if (cyphProperties.getAuth().getAdminEmails().stream().anyMatch(e -> e.equalsIgnoreCase(emailOrUsername))) return true;
-        if (cyphProperties.getAuth().getFormLogin().isEnabled()) {
-            String formUsername = cyphProperties.getAuth().getFormLogin().getUsername();
-            String effectiveFormUser = (formUsername != null && !formUsername.isBlank()) ? formUsername.trim() : "admin@localhost";
-            if (effectiveFormUser.equalsIgnoreCase(emailOrUsername)) return true;
-        }
+        if (isSuperAdmin(emailOrUsername)) return true;
         return repository.findByEmailIgnoreCase(emailOrUsername).map(AllowedUser::isAdmin).orElse(false);
+    }
+
+    /**
+     * True if this email is the single super-admin (from ADMIN_USERNAME / cyph.auth.form-login.username).
+     * Super-admin cannot be deleted or demoted; other admins are managed via the admin panel.
+     */
+    public boolean isSuperAdmin(String email) {
+        if (email == null || email.isBlank()) return false;
+        if (!cyphProperties.getAuth().getFormLogin().isEnabled()) return false;
+        String formUsername = cyphProperties.getAuth().getFormLogin().getUsername();
+        String superAdminEmail = (formUsername != null && !formUsername.isBlank()) ? formUsername.trim() : "admin@localhost";
+        return superAdminEmail.equalsIgnoreCase(email.trim());
     }
 
     @Transactional
@@ -87,7 +93,7 @@ public class AllowedUserService {
                     newUser.setSource(source);
                     newUser.setExternalId(externalId);
                     newUser.setLastLoginAt(Instant.now());
-                    newUser.setAdmin(cyphProperties.getAuth().getAdminEmails().stream().anyMatch(e -> e.equalsIgnoreCase(email)));
+                    newUser.setAdmin(isSuperAdmin(email));
                     return repository.save(newUser);
                 });
         if (groupNamesFromToken != null) {

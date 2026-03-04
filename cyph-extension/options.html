@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cyph – Options</title>
+  <link rel="stylesheet" href="popup.css" />
+  <style>
+    body { width: 480px; padding: 24px; }
+    .options-section { margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <h1 class="title">Cyph – Options</h1>
+  <p class="subtitle">Set your organization’s Cyph URL. You can also set it in the popup when signing in.</p>
+  <div class="options-section">
+    <label for="cyph-url">Default Cyph URL</label>
+    <input type="url" id="cyph-url" placeholder="https://cyph.your-company.com" />
+    <button type="button" id="save-btn" class="primary-btn">Save</button>
+    <p id="save-status" class="hint" style="margin-top:8px"></p>
+  </div>
+  <script src="options.js"></script>
+</body>
+</html>

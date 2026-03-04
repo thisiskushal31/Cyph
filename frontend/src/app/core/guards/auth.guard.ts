@@ -4,7 +4,7 @@ import { map, catchError, take, of } from 'rxjs';
 import { ApiService } from '../services/api.service';
 
 /**
- * Protects routes by verifying the session with the backend (GET /api/me).
+ * Protects routes by verifying the session with the backend (GET /api/v1/me).
  * Redirects to /login if not authenticated.
  */
 export const authGuard: CanActivateFn = () => {

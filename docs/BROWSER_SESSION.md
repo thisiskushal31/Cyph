@@ -12,7 +12,7 @@ If you get **403 Forbidden** when deleting users (or other admin actions) even a
 After logging in, open this URL in the **same tab** (so the cookie is sent):
 
 ```
-http://localhost:4200/api/auth/session-info
+http://localhost:4200/api/v1/auth/session-info
 ```
 
 - **If you see JSON** like `{"authenticated":true,"principal":"admin@localhost","isAdmin":true}`  
@@ -38,12 +38,12 @@ http://localhost:4200/api/auth/session-info
 2. Close any other tabs for the app.
 3. Open a **single** tab: `http://localhost:4200`.
 4. Log in with the super-admin credentials (e.g. `admin@localhost` / `admin`).
-5. Without refreshing, open `http://localhost:4200/api/auth/session-info` in the same tab (or a new tab to the same origin).
+5. Without refreshing, open `http://localhost:4200/api/v1/auth/session-info` in the same tab (or a new tab to the same origin).
 6. Confirm `session-info` shows `"isAdmin": true`, then try the admin action again.
 
 ## 5. Try incognito / private window
 
-Extensions or existing cookies can interfere. Open `http://localhost:4200` in an **incognito/private** window, log in, check `/api/auth/session-info`, then try the delete.
+Extensions or existing cookies can interfere. Open `http://localhost:4200` in an **incognito/private** window, log in, check `/api/v1/auth/session-info`, then try the delete.
 
 ## 6. Docker and proxy
 
@@ -51,4 +51,4 @@ With Docker Compose, the frontend at 4200 proxies `/api` to the backend. The pro
 
 ---
 
-**Summary:** Use `http://localhost:4200` only, clear cookies for that origin, log in once, then open `/api/auth/session-info` to confirm the backend sees you as admin. If `session-info` shows `isAdmin: true` but delete still returns 403, say so and we can debug the admin check or the delete request next.
+**Summary:** Use `http://localhost:4200` only, clear cookies for that origin, log in once, then open `/api/v1/auth/session-info` to confirm the backend sees you as admin. If `session-info` shows `isAdmin: true` but delete still returns 403, say so and we can debug the admin check or the delete request next.

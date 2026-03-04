@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping(ApiV1.BASE)
 public class MeController {
 
     private final AllowedUserService allowedUserService;

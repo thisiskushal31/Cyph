@@ -1,11 +1,13 @@
 package com.cyph.api;
 
 import com.cyph.api.dto.AddUserRequest;
+import com.cyph.api.dto.RemoveGroupPermissionRequest;
+import com.cyph.api.dto.RemoveUserRequest;
+import com.cyph.api.dto.SetAdminRequest;
 import com.cyph.service.AllowedUserService;
 import com.cyph.service.AuditService;
 import com.cyph.service.GroupSendPermissionService;
 import jakarta.validation.Valid;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -14,14 +16,18 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.Map;
 
+/**
+ * Admin API (users, groups, group-permissions, audit-log).
+ * All mutation endpoints use POST with a JSON body so credentials are sent reliably.
+ */
 @RestController
-@RequestMapping("/api/admin")
+@RequestMapping(ApiV1.BASE + "/admin")
 public class AdminController {
+
+    private static final String MSG_UNAUTHENTICATED = "Not authenticated. Session may have expired; try logging in again.";
+    private static final String MSG_FORBIDDEN = "Admin access required. Your account must have Admin toggled in the users list.";
 
     private final AllowedUserService allowedUserService;
     private final AuditService auditService;
@@ -39,68 +45,78 @@ public class AdminController {
             Authentication authentication,
             @AuthenticationPrincipal OidcUser oidcUser,
             @AuthenticationPrincipal OAuth2User oauth2User) {
-        String email = emailFrom(oidcUser, oauth2User, authentication);
-        if (email == null || !allowedUserService.isAdmin(email)) {
-            return forbidden();
-        }
+        AuthResult auth = requireAdmin(oidcUser, oauth2User, authentication);
+        if (auth.error() != null) return auth.error();
         return ResponseEntity.ok(allowedUserService.listAll());
     }
 
     @PostMapping("/users")
     public ResponseEntity<?> addUser(@Valid @RequestBody AddUserRequest request,
-                                    Authentication authentication,
-                                    @AuthenticationPrincipal OidcUser oidcUser,
-                                    @AuthenticationPrincipal OAuth2User oauth2User) {
-        String adminEmail = emailFrom(oidcUser, oauth2User, authentication);
-        if (adminEmail == null || !allowedUserService.isAdmin(adminEmail)) {
-            return forbidden();
-        }
-        try {
-            return allowedUserService.addByAdmin(
-                            request.getEmail(),
-                            request.getUsername(),
-                            request.getPassword(),
-                            request.getGroup(),
-                            adminEmail)
-                    .map(u -> ResponseEntity.ok(Map.of("email", u.getEmail(), "source", u.getSource().name())))
-                    .orElse(ResponseEntity.badRequest().body(Map.of("message", "User already exists")));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
-        }
-    }
-
-    @DeleteMapping("/users/{email}")
-    public ResponseEntity<?> removeUser(@PathVariable String email,
-                                        Authentication authentication,
-                                        @AuthenticationPrincipal OidcUser oidcUser,
-                                        @AuthenticationPrincipal OAuth2User oauth2User) {
-        String adminEmail = emailFrom(oidcUser, oauth2User, authentication);
-        if (adminEmail == null || !allowedUserService.isAdmin(adminEmail)) {
-            return forbidden();
-        }
-        String decodedEmail = decodePathEmail(email);
-        if (decodedEmail.equalsIgnoreCase(adminEmail)) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Cannot remove yourself"));
-        }
-        if (allowedUserService.isAdmin(decodedEmail)) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Cannot remove an admin user"));
-        }
-        boolean removed = allowedUserService.removeByAdmin(decodedEmail);
-        return removed ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
-    }
-
-    @PatchMapping("/users/{email}/admin")
-    public ResponseEntity<?> setAdmin(@PathVariable String email,
-                                      @RequestParam boolean admin,
                                       Authentication authentication,
                                       @AuthenticationPrincipal OidcUser oidcUser,
                                       @AuthenticationPrincipal OAuth2User oauth2User) {
-        String currentEmail = emailFrom(oidcUser, oauth2User, authentication);
-        if (currentEmail == null || !allowedUserService.isAdmin(currentEmail)) {
-            return forbidden();
+        AuthResult auth = requireAdmin(oidcUser, oauth2User, authentication);
+        if (auth.error() != null) return auth.error();
+        String adminEmail = auth.adminEmail();
+        try {
+            var added = allowedUserService.addByAdmin(
+                    request.getEmail(),
+                    request.getUsername(),
+                    request.getPassword(),
+                    request.getGroup(),
+                    adminEmail);
+            if (added.isEmpty()) return badRequest("User already exists");
+            var u = added.get();
+            auditService.logUserCreated(adminEmail, u.getEmail());
+            return ResponseEntity.ok(Map.of("email", u.getEmail(), "source", u.getSource().name()));
+        } catch (IllegalArgumentException e) {
+            return badRequest(e.getMessage());
         }
-        allowedUserService.setAdmin(decodePathEmail(email), admin);
-        return ResponseEntity.ok(Map.of("email", decodePathEmail(email), "admin", admin));
+    }
+
+    @PostMapping("/users/remove")
+    public ResponseEntity<?> removeUser(@Valid @RequestBody RemoveUserRequest request,
+                                        Authentication authentication,
+                                        @AuthenticationPrincipal OidcUser oidcUser,
+                                        @AuthenticationPrincipal OAuth2User oauth2User) {
+        AuthResult auth = requireAdmin(oidcUser, oauth2User, authentication);
+        if (auth.error() != null) return auth.error();
+        String adminEmail = auth.adminEmail();
+
+        String emailToRemove = request != null && request.getEmail() != null ? request.getEmail().trim() : "";
+        if (emailToRemove.isBlank()) return badRequest("Email is required");
+        if (emailToRemove.equalsIgnoreCase(adminEmail)) return badRequest("Cannot remove yourself");
+        if (allowedUserService.isSuperAdmin(emailToRemove)) return badRequest("Cannot remove the super-admin user");
+        if (allowedUserService.isAdmin(emailToRemove)) return badRequest("Cannot remove an admin user");
+
+        boolean removed = allowedUserService.removeByAdmin(emailToRemove);
+        if (removed) {
+            auditService.logUserDeleted(adminEmail, emailToRemove);
+            return ResponseEntity.noContent().build();
+        }
+        return notFound("User not found");
+    }
+
+    @PostMapping("/users/set-admin")
+    public ResponseEntity<?> setAdmin(@Valid @RequestBody SetAdminRequest request,
+                                     Authentication authentication,
+                                     @AuthenticationPrincipal OidcUser oidcUser,
+                                     @AuthenticationPrincipal OAuth2User oauth2User) {
+        AuthResult auth = requireAdmin(oidcUser, oauth2User, authentication);
+        if (auth.error() != null) return auth.error();
+        String adminEmail = auth.adminEmail();
+
+        String targetEmail = request.getEmail() != null ? request.getEmail().trim() : "";
+        Boolean admin = request.getAdmin();
+        if (targetEmail.isBlank()) return badRequest("Email is required");
+        if (admin == null) return badRequest("Admin flag is required");
+        if (!admin && allowedUserService.isSuperAdmin(targetEmail)) {
+            return badRequest("Cannot demote the super-admin user");
+        }
+
+        allowedUserService.setAdmin(targetEmail, admin);
+        auditService.logUserAdminChanged(adminEmail, targetEmail, admin);
+        return ResponseEntity.ok(Map.of("email", targetEmail, "admin", admin));
     }
 
     @GetMapping("/groups")
@@ -108,10 +124,8 @@ public class AdminController {
             Authentication authentication,
             @AuthenticationPrincipal OidcUser oidcUser,
             @AuthenticationPrincipal OAuth2User oauth2User) {
-        String email = emailFrom(oidcUser, oauth2User, authentication);
-        if (email == null || !allowedUserService.isAdmin(email)) {
-            return forbidden();
-        }
+        AuthResult auth = requireAdmin(oidcUser, oauth2User, authentication);
+        if (auth.error() != null) return auth.error();
         return ResponseEntity.ok(groupSendPermissionService.listGroups());
     }
 
@@ -120,16 +134,16 @@ public class AdminController {
                                          Authentication authentication,
                                          @AuthenticationPrincipal OidcUser oidcUser,
                                          @AuthenticationPrincipal OAuth2User oauth2User) {
-        String email = emailFrom(oidcUser, oauth2User, authentication);
-        if (email == null || !allowedUserService.isAdmin(email)) {
-            return forbidden();
-        }
+        AuthResult auth = requireAdmin(oidcUser, oauth2User, authentication);
+        if (auth.error() != null) return auth.error();
+        String adminEmail = auth.adminEmail();
         String name = body != null ? body.get("name") : null;
         try {
             GroupSendPermissionService.GroupDto g = groupSendPermissionService.createGroup(name);
+            auditService.logGroupCreated(adminEmail, g.name());
             return ResponseEntity.status(201).body(g);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+            return badRequest(e.getMessage());
         }
     }
 
@@ -138,77 +152,93 @@ public class AdminController {
             Authentication authentication,
             @AuthenticationPrincipal OidcUser oidcUser,
             @AuthenticationPrincipal OAuth2User oauth2User) {
-        String email = emailFrom(oidcUser, oauth2User, authentication);
-        if (email == null || !allowedUserService.isAdmin(email)) {
-            return forbidden();
-        }
+        AuthResult auth = requireAdmin(oidcUser, oauth2User, authentication);
+        if (auth.error() != null) return auth.error();
         return ResponseEntity.ok(groupSendPermissionService.listPermissions());
     }
 
     @PostMapping("/group-permissions")
     public ResponseEntity<?> addGroupPermission(@RequestBody Map<String, String> body,
-                                                 Authentication authentication,
-                                                 @AuthenticationPrincipal OidcUser oidcUser,
-                                                 @AuthenticationPrincipal OAuth2User oauth2User) {
-        String email = emailFrom(oidcUser, oauth2User, authentication);
-        if (email == null || !allowedUserService.isAdmin(email)) {
-            return forbidden();
-        }
+                                                Authentication authentication,
+                                                @AuthenticationPrincipal OidcUser oidcUser,
+                                                @AuthenticationPrincipal OAuth2User oauth2User) {
+        AuthResult auth = requireAdmin(oidcUser, oauth2User, authentication);
+        if (auth.error() != null) return auth.error();
+        String adminEmail = auth.adminEmail();
         String from = body != null ? body.get("fromGroupName") : null;
         String to = body != null ? body.get("toGroupName") : null;
         try {
             GroupSendPermissionService.GroupPermissionDto p = groupSendPermissionService.addPermission(from, to);
+            auditService.logGroupPermissionAdded(adminEmail, p.fromGroupName(), p.toGroupName());
             return ResponseEntity.status(201).body(p);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+            return badRequest(e.getMessage());
         }
     }
 
-    @DeleteMapping("/group-permissions")
-    public ResponseEntity<?> removeGroupPermission(@RequestParam Long fromGroupId, @RequestParam Long toGroupId,
+    @PostMapping("/group-permissions/remove")
+    public ResponseEntity<?> removeGroupPermission(@Valid @RequestBody RemoveGroupPermissionRequest request,
                                                     Authentication authentication,
                                                     @AuthenticationPrincipal OidcUser oidcUser,
                                                     @AuthenticationPrincipal OAuth2User oauth2User) {
-        String email = emailFrom(oidcUser, oauth2User, authentication);
-        if (email == null || !allowedUserService.isAdmin(email)) {
-            return forbidden();
+        AuthResult auth = requireAdmin(oidcUser, oauth2User, authentication);
+        if (auth.error() != null) return auth.error();
+        if (request.getFromGroupId() == null || request.getToGroupId() == null) {
+            return badRequest("fromGroupId and toGroupId are required");
         }
-        groupSendPermissionService.removePermission(fromGroupId, toGroupId);
+        Long fromId = request.getFromGroupId();
+        Long toId = request.getToGroupId();
+        groupSendPermissionService.removePermission(fromId, toId);
+        auditService.logGroupPermissionRemovedByIds(auth.adminEmail(), fromId, toId);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/audit-log")
     public ResponseEntity<?> getAuditLog(Pageable pageable,
-                                                                      Authentication authentication,
-                                                                      @AuthenticationPrincipal OidcUser oidcUser,
-                                                                      @AuthenticationPrincipal OAuth2User oauth2User) {
-        String email = emailFrom(oidcUser, oauth2User, authentication);
-        if (email == null || !allowedUserService.isAdmin(email)) {
-            return forbidden();
-        }
+                                         Authentication authentication,
+                                         @AuthenticationPrincipal OidcUser oidcUser,
+                                         @AuthenticationPrincipal OAuth2User oauth2User) {
+        AuthResult auth = requireAdmin(oidcUser, oauth2User, authentication);
+        if (auth.error() != null) return auth.error();
         return ResponseEntity.ok(auditService.getAuditLog(pageable));
     }
 
-    private static ResponseEntity<?> forbidden() {
-        return ResponseEntity.status(403).body(Map.of("message", "Admin access required. Your account must be in cyph.auth.admin-emails or have Admin toggled in the users list."));
-    }
+    // --- Auth & error helpers (consistent responses for all admin endpoints) ---
 
-    /** Decode path variable email in case it arrives encoded (e.g. kushal%40test). */
-    private static String decodePathEmail(String email) {
-        if (email == null || email.isBlank()) return email;
-        try {
-            return URLDecoder.decode(email, StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            return email;
-        }
-    }
-
-    private static String emailFrom(OidcUser oidcUser, OAuth2User oauth2User, Authentication authentication) {
+    /** Returns current user email from OIDC, OAuth2, or form auth; null if not authenticated. */
+    private String getCurrentEmail(OidcUser oidcUser, OAuth2User oauth2User, Authentication authentication) {
         if (oidcUser != null && oidcUser.getEmail() != null) return oidcUser.getEmail();
-        if (oauth2User != null && oauth2User.getAttribute("email") != null) return (String) oauth2User.getAttribute("email");
+        if (oauth2User != null && oauth2User.getAttribute("email") != null) {
+            return (String) oauth2User.getAttribute("email");
+        }
         if (authentication != null && authentication.getName() != null && !authentication.getName().isBlank()) {
             return authentication.getName();
         }
         return null;
+    }
+
+    /**
+     * Returns admin email if current user is authenticated and is an admin;
+     * otherwise returns an error response (left) and null email (right).
+     */
+    private AuthResult requireAdmin(OidcUser oidcUser, OAuth2User oauth2User, Authentication authentication) {
+        String email = getCurrentEmail(oidcUser, oauth2User, authentication);
+        if (email == null || email.isBlank()) {
+            return new AuthResult(ResponseEntity.status(401).body(Map.of("message", MSG_UNAUTHENTICATED)), null);
+        }
+        if (!allowedUserService.isAdmin(email)) {
+            return new AuthResult(ResponseEntity.status(403).body(Map.of("message", MSG_FORBIDDEN)), null);
+        }
+        return new AuthResult(null, email);
+    }
+
+    private record AuthResult(ResponseEntity<?> error, String adminEmail) {}
+
+    private static ResponseEntity<?> badRequest(String message) {
+        return ResponseEntity.badRequest().body(Map.of("message", message != null ? message : "Bad request"));
+    }
+
+    private static ResponseEntity<?> notFound(String message) {
+        return ResponseEntity.status(404).body(Map.of("message", message != null ? message : "Not found"));
     }
 }

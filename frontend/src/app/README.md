@@ -7,8 +7,8 @@ This folder contains the Angular application for Cyph: send secret messages, sig
 - **`app.component.ts`** – Root component: header (nav: Send, Admin, Log, Sign in/out) and main outlet for routes.
 - **`app.routes.ts`** – Route definitions. `/login` is public; `/send`, `/view/:token`, `/admin`, `/log` are protected by guards.
 - **`core/`** – Shared logic used across the app.
-  - **`guards/`** – `authGuard` (requires session), `adminGuard` (requires admin role from `/api/me`).
-  - **`services/`** – `ApiService`: all HTTP calls to the backend (`/api/...`), with credentials for cookies.
+  - **`guards/`** – `authGuard` (requires session), `adminGuard` (requires admin role from `/api/v1/me`).
+  - **`services/`** – `ApiService`: all HTTP calls to the backend (`/api/v1/...`), with credentials for cookies.
 - **`pages/`** – One folder per main screen.
   - **`login/`** – Sign-in page with three options: username/password, SSO, Google. Template and styles in separate files.
   - **`send/`** – Send a secret message: recipient email, message text, submit.
@@ -25,7 +25,7 @@ This folder contains the Angular application for Cyph: send secret messages, sig
 
 ## Build and serve
 
-- `npm start` – Dev server with proxy to backend (see `src/proxy.conf.json`: `/api`, `/login`, `/logout`, `/oauth2` → backend).
+- `npm start` – Dev server with proxy to backend (see `src/proxy.conf.json`: `/api` (includes `/api/v1`), `/login`, `/logout`, `/oauth2` → backend).
 - `npm run build` – Production build in `dist/`.
 
 All API calls use relative URLs and `withCredentials: true` so the session cookie is sent.

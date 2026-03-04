@@ -19,12 +19,12 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 /**
- * POST /api/auth/login: JSON-based form login so the SPA can log in without relying on
+ * POST /api/v1/auth/login: JSON-based form login so the SPA can log in without relying on
  * POST /login being proxied (which can return HTML in some dev setups).
- * GET /api/auth/session-info: returns who the backend sees and whether they are admin (for debugging session/cookie issues).
+ * GET /api/v1/auth/session-info: returns who the backend sees and whether they are admin (for debugging session/cookie issues).
  */
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping(ApiV1.BASE + "/auth")
 public class AuthLoginController {
 
     private final AuthenticationManager authenticationManager;

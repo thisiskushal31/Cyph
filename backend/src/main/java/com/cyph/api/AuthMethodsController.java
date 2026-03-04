@@ -12,7 +12,7 @@ import java.util.Map;
  * Public API for the login page: which login methods are available (SSO, Google, admin form).
  */
 @RestController
-@RequestMapping("/api/public")
+@RequestMapping(ApiV1.BASE + "/public")
 public class AuthMethodsController {
 
     private final CyphProperties cyphProperties;

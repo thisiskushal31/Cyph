@@ -1,0 +1,170 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  width: 360px;
+  min-height: 320px;
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-size: 14px;
+  color: #1e293b;
+  background: #f8fafc;
+}
+
+.panel {
+  padding: 16px;
+}
+
+.panel.hidden {
+  display: none;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0 0 4px 0;
+  color: #0f172a;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0 0 16px 0;
+}
+
+label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 4px;
+}
+
+input[type="url"],
+input[type="text"],
+input[type="password"] {
+  width: 100%;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+button[type="submit"],
+.primary-btn {
+  width: 100%;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+button[type="submit"]:hover,
+.primary-btn:hover {
+  background: linear-gradient(135deg, #5558e3 0%, #4338ca 100%);
+}
+
+button[type="submit"]:disabled,
+.primary-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.text-btn {
+  background: none;
+  border: none;
+  font-size: 13px;
+  color: #6366f1;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.text-btn:hover {
+  text-decoration: underline;
+}
+
+.error {
+  font-size: 13px;
+  color: #dc2626;
+  margin: 0 0 12px 0;
+}
+
+.hint {
+  font-size: 12px;
+  color: #94a3b8;
+  margin: 12px 0 0 0;
+}
+
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.header-row .title {
+  margin: 0;
+}
+
+#credentials-list {
+  margin-top: 12px;
+}
+
+.credential-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.credential-item .label {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.credential-item .meta {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.credential-item .reveal-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6366f1;
+  background: #eef2ff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.credential-item .reveal-btn:hover {
+  background: #e0e7ff;
+}
+
+.empty {
+  font-size: 13px;
+  color: #64748b;
+  margin: 16px 0 0 0;
+}
+
+.empty.hidden {
+  display: none;
+}

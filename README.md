@@ -134,9 +134,8 @@ Secrets (client secrets, DB password, SMTP password) should be injected via env 
    - In `application.yml` add under `spring.security.oauth2.client.registration`: a `google` entry with `client-id` and `client-secret`.  
    - Start backend and frontend; open `http://localhost:4200`, sign in with Google. You'll be created in the allowed_user table. Your email in `admin-emails` gets Admin access.
 3. **SSO (e.g. Keycloak)**  
-   - Run Keycloak (or another OIDC IdP) locally; create a realm and client, set redirect URI to `http://localhost:8080/login/oauth2/code/sso`.  
-   - Set `cyph.auth.sso.enabled: true` and register the client with `registrationId: sso` and `issuer-uri`.  
-   - First SSO login creates the user in DB; add your email to `admin-emails` to access Admin.
+   - **With Docker**: `docker compose up` starts Keycloak on port **8180**. The backend is preconfigured (registration id: `keycloak`). Open http://localhost:4200 and use “Sign in with SSO”; test user `sso-user` / `sso-user`. See [backend README → Keycloak (local SSO)](backend/README.md#keycloak-local-sso).  
+   - **Without Docker**: Run Keycloak (or another OIDC IdP) locally; create a realm and client, set redirect URI to `http://localhost:8080/login/oauth2/code/sso`. Set `cyph.auth.sso.enabled: true` and register the client with `registrationId: sso` and `issuer-uri`. First SSO login creates the user in DB; add your email to `admin-emails` to access Admin.
 
 ## Redundancy: message cleanup and job failure
 
@@ -145,12 +144,27 @@ Secrets (client secrets, DB password, SMTP password) should be injected via env 
 - **If the scheduled job fails**: The job uses **Spring Retry** (3 attempts with backoff). If all retries fail, the exception is logged and the next **cron run** (e.g. 15 minutes later) will run again. So a failing job does not need a "scheduler for the scheduler"—the next run is the redundancy.
 - **Config**: `cyph.cleanup.cron` (default `0 */15 * * * *`).
 
+## Extension: organization-managed password manager
+
+Cyph can act as an **organization-managed password manager** via a Chrome extension:
+
+- **Admins** push credentials (e.g. service passwords, API keys) to users from the Cyph web app.
+- **Users** install the [Cyph Chrome extension](cyph-extension/), enter their Cyph URL and login (username/password), and then see and reveal only the credentials pushed to them.
+
+The extension is in **cyph-extension/**; the backend APIs for extension auth and pushed credentials are specified in **[docs/PRODUCT.md](docs/PRODUCT.md)**. That doc also covers deployment and a **SOC 2 / ISO 27001** compatibility roadmap so any organization can deploy Cyph and aim for compliance.
+
+---
+
 ## Project layout
 
 ```
 Cyph/
 ├── README.md                 # This file
 ├── docker-compose.yml        # Local dev: docker compose up (DB + backend + frontend, live code)
+├── docs/
+│   ├── PRODUCT.md            # Product vision, extension API, SOC 2 / ISO 27001
+│   └── DEPLOYMENT.md         # Production deployment
+├── cyph-extension/           # Chrome extension (org-managed password manager client)
 ├── backend/                  # Java Spring Boot API
 │   ├── Dockerfile.dev        # Dev image (mount source, Gradle continuous build)
 │   ├── src/main/java/...     # Packages: config, security, message, api, persistence

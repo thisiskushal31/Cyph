@@ -57,8 +57,12 @@ export interface AuditLogEntry {
   senderGroupNames?: string;
   recipientGroupNames?: string;
   sameGroup?: boolean;
-  /** For LOGIN events: the user who logged in (email or username). */
+  /** Who performed the action (e.g. admin email, or principal for LOGIN). */
   actorIdentifier?: string | null;
+  /** Target of the action (e.g. user email, group name). */
+  targetIdentifier?: string | null;
+  /** Optional details (e.g. "admin=true", "fromGroup→toGroup"). */
+  details?: string | null;
 }
 
 export interface AuditLogPage {
@@ -80,9 +84,22 @@ export interface GroupPermissionDto {
   toGroupName: string;
 }
 
+/** Backend errors return { message: string }. Use this for consistent user-facing error text. */
+export function getApiErrorMessage(err: unknown, fallback = 'Something went wrong'): string {
+  if (err && typeof err === 'object' && 'error' in err) {
+    const body = (err as { error?: { message?: string } }).error;
+    if (body && typeof body === 'object' && typeof body.message === 'string') return body.message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
+}
+
+/** API version base path. All backend REST calls use this prefix. */
+export const API_BASE = '/api/v1';
+
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-  private readonly base = '/api';
+  private readonly base = API_BASE;
 
   constructor(private http: HttpClient) {}
 
@@ -103,10 +120,13 @@ export class ApiService {
     return this.http.post<SendSecretResponse>(`${this.base}/send`, body, { withCredentials: true });
   }
 
+  /** POST with body so session cookie is sent reliably. */
   viewSecret(accessToken: string): Observable<ViewSecretResponse | { locked: boolean }> {
-    return this.http.get<ViewSecretResponse | { locked: boolean }>(`${this.base}/view/${accessToken}`, {
-      withCredentials: true,
-    });
+    return this.http.post<ViewSecretResponse | { locked: boolean }>(
+      `${this.base}/view`,
+      { accessToken },
+      { withCredentials: true }
+    );
   }
 
   listAdminUsers(): Observable<AllowedUserDto[]> {
@@ -117,14 +137,16 @@ export class ApiService {
     return this.http.post<{ email: string; source: string }>(`${this.base}/admin/users`, body, { withCredentials: true });
   }
 
+  /** POST with body so session cookie is sent reliably. */
   removeUser(email: string): Observable<void> {
-    return this.http.delete<void>(`${this.base}/admin/users/${encodeURIComponent(email)}`, { withCredentials: true });
+    return this.http.post<void>(`${this.base}/admin/users/remove`, { email }, { withCredentials: true });
   }
 
+  /** POST with body for reliable auth/session handling. */
   setUserAdmin(email: string, admin: boolean): Observable<{ email: string; admin: boolean }> {
-    return this.http.patch<{ email: string; admin: boolean }>(
-      `${this.base}/admin/users/${encodeURIComponent(email)}/admin?admin=${admin}`,
-      {},
+    return this.http.post<{ email: string; admin: boolean }>(
+      `${this.base}/admin/users/set-admin`,
+      { email, admin },
       { withCredentials: true }
     );
   }
@@ -155,9 +177,11 @@ export class ApiService {
     );
   }
 
+  /** POST with body for reliable auth/session handling. */
   removeGroupPermission(fromGroupId: number, toGroupId: number): Observable<void> {
-    return this.http.delete<void>(
-      `${this.base}/admin/group-permissions?fromGroupId=${fromGroupId}&toGroupId=${toGroupId}`,
+    return this.http.post<void>(
+      `${this.base}/admin/group-permissions/remove`,
+      { fromGroupId, toGroupId },
       { withCredentials: true }
     );
   }

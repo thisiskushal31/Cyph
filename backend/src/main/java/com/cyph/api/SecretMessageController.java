@@ -1,6 +1,7 @@
 package com.cyph.api;
 
 import com.cyph.api.dto.SendSecretRequest;
+import com.cyph.api.dto.ViewSecretRequest;
 import com.cyph.service.AllowedUserService;
 import com.cyph.service.SecretMessageService;
 import jakarta.validation.Valid;
@@ -20,7 +21,7 @@ import java.util.stream.Collectors;
  * Authenticated user email is taken from OIDC or OAuth2 token.
  */
 @RestController
-@RequestMapping("/api")
+@RequestMapping(ApiV1.BASE)
 public class SecretMessageController {
 
     private final SecretMessageService secretMessageService;
@@ -35,14 +36,16 @@ public class SecretMessageController {
      * List of users that can be selected as recipients (for dropdown on Send page).
      * Any authenticated user can call this.
      */
+    private static final String MSG_UNAUTHENTICATED = "Not authenticated. Session may have expired; try logging in again.";
+
     @GetMapping("/recipients")
-    public ResponseEntity<List<Map<String, String>>> recipients(
+    public ResponseEntity<?> recipients(
             Authentication authentication,
             @AuthenticationPrincipal OidcUser oidcUser,
             @AuthenticationPrincipal OAuth2User oauth2User) {
         String current = emailFromPrincipal(oidcUser, oauth2User, authentication);
         if (current == null || current.isBlank()) {
-            return ResponseEntity.status(401).build();
+            return ResponseEntity.status(401).body(Map.of("message", MSG_UNAUTHENTICATED));
         }
         List<Map<String, String>> list = allowedUserService.listAll().stream()
                 .map(dto -> {
@@ -57,13 +60,13 @@ public class SecretMessageController {
     }
 
     @PostMapping("/send")
-    public ResponseEntity<Map<String, String>> send(@Valid @RequestBody SendSecretRequest request,
-                                                   Authentication authentication,
-                                                   @AuthenticationPrincipal OidcUser oidcUser,
-                                                   @AuthenticationPrincipal OAuth2User oauth2User) {
+    public ResponseEntity<?> send(@Valid @RequestBody SendSecretRequest request,
+                                  Authentication authentication,
+                                  @AuthenticationPrincipal OidcUser oidcUser,
+                                  @AuthenticationPrincipal OAuth2User oauth2User) {
         String senderEmail = emailFromPrincipal(oidcUser, oauth2User, authentication);
         if (senderEmail == null || senderEmail.isBlank()) {
-            return ResponseEntity.status(401).build();
+            return ResponseEntity.status(401).body(Map.of("message", MSG_UNAUTHENTICATED));
         }
         String senderName = senderDisplayName(oidcUser, oauth2User, senderEmail);
         String token = secretMessageService.store(
@@ -75,22 +78,29 @@ public class SecretMessageController {
         return ResponseEntity.ok(Map.of("accessToken", token));
     }
 
-    @GetMapping("/view/{accessToken}")
-    public ResponseEntity<?> view(@PathVariable String accessToken,
-                                  Authentication authentication,
-                                  @AuthenticationPrincipal OidcUser oidcUser,
-                                  @AuthenticationPrincipal OAuth2User oauth2User) {
+    /**
+     * View a secret message. POST with body ensures session cookies are sent reliably.
+     */
+    @PostMapping("/view")
+    public ResponseEntity<?> view(@Valid @RequestBody ViewSecretRequest request,
+                                   Authentication authentication,
+                                   @AuthenticationPrincipal OidcUser oidcUser,
+                                   @AuthenticationPrincipal OAuth2User oauth2User) {
         String email = emailFromPrincipal(oidcUser, oauth2User, authentication);
         if (email == null || email.isBlank()) {
-            return ResponseEntity.status(401).build();
+            return ResponseEntity.status(401).body(Map.of("message", MSG_UNAUTHENTICATED));
+        }
+        String accessToken = request != null && request.getAccessToken() != null ? request.getAccessToken().trim() : "";
+        if (accessToken.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "accessToken is required"));
         }
         var optional = secretMessageService.getPlaintext(accessToken, email);
         if (optional.isEmpty()) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(404).body(Map.of("message", "Message not found or expired."));
         }
         var result = optional.get();
         if (result.locked()) {
-            return ResponseEntity.status(403).body(Map.of("locked", true));
+            return ResponseEntity.status(403).body(Map.of("locked", true, "message", "This message is locked (cross-group)."));
         }
         return ResponseEntity.ok(Map.of("message", result.message()));
     }
