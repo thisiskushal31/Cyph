@@ -105,6 +105,7 @@ public class CyphProperties {
         /**
          * @deprecated Use oauth2RegistrationIds. When set, GET /login used to redirect to this single provider.
          */
+        @Deprecated
         private String oauth2LoginRegistrationId;
         /**
          * Optional list of allowed email domains (e.g. yourcompany.com).
@@ -179,6 +180,29 @@ public class CyphProperties {
 
         public void setAdminEmails(List<String> adminEmails) {
             this.adminEmails = adminEmails != null ? adminEmails : Collections.emptyList();
+        }
+
+        /** JWT for extension auth. When set, extension can log in and get a token. */
+        private ExtensionJwt extensionJwt = new ExtensionJwt();
+
+        public ExtensionJwt getExtensionJwt() {
+            return extensionJwt;
+        }
+
+        public void setExtensionJwt(ExtensionJwt extensionJwt) {
+            this.extensionJwt = extensionJwt;
+        }
+
+        public static class ExtensionJwt {
+            /** Secret for signing JWTs (min 256 bits / 32 bytes for HS256). Set via env in production. */
+            private String secret = "change-me-extension-jwt-secret-min-32-bytes-long-for-hs256";
+            /** Token validity in minutes. */
+            private int expirationMinutes = 60 * 24; // 24 hours
+
+            public String getSecret() { return secret; }
+            public void setSecret(String secret) { this.secret = secret; }
+            public int getExpirationMinutes() { return expirationMinutes; }
+            public void setExpirationMinutes(int expirationMinutes) { this.expirationMinutes = expirationMinutes; }
         }
 
         public static class FormLogin {

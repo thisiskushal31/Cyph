@@ -144,14 +144,15 @@ Secrets (client secrets, DB password, SMTP password) should be injected via env 
 - **If the scheduled job fails**: The job uses **Spring Retry** (3 attempts with backoff). If all retries fail, the exception is logged and the next **cron run** (e.g. 15 minutes later) will run again. So a failing job does not need a "scheduler for the scheduler"—the next run is the redundancy.
 - **Config**: `cyph.cleanup.cron` (default `0 */15 * * * *`).
 
-## Extension: organization-managed password manager
+## Extension: password manager (shared + personal)
 
-Cyph can act as an **organization-managed password manager** via a Chrome extension:
+Cyph includes a **credential manager** and a **Chrome extension** that works as a password manager:
 
-- **Admins** push credentials (e.g. service passwords, API keys) to users from the Cyph web app.
-- **Users** install the [Cyph Chrome extension](cyph-extension/), enter their Cyph URL and login (username/password), and then see and reveal only the credentials pushed to them.
+- **Shared credentials** – Admins push credentials (e.g. Grafana, shared service logins) to users or groups from **Admin → Shared credentials**. Users see them in the extension and can reveal/copy.
+- **Personal credentials** – Users add their own credentials in **Credentials** (web) or in the extension. They are stored in Cyph and stay in sync; the same site can have both a shared and a personal entry (e.g. team Grafana + “My Grafana”).
+- **One URL** – The extension uses the same deployment URL as the web app (e.g. `https://cyph.company.com`). Users enter that URL and their Cyph username/password; the extension then lists and reveals credentials from that instance.
 
-The extension is in **cyph-extension/**; the backend APIs for extension auth and pushed credentials are specified in **[docs/PRODUCT.md](docs/PRODUCT.md)**. That doc also covers deployment and a **SOC 2 / ISO 27001** compatibility roadmap so any organization can deploy Cyph and aim for compliance.
+See **[cyph-extension/README.md](cyph-extension/README.md)** and **[docs/PRODUCT.md](docs/PRODUCT.md)** for the API and flow. For **SOC 2, ISO 27001, GDPR, and India’s data protection (DPDP)**, see **[docs/COMPLIANCE.md](docs/COMPLIANCE.md)**.
 
 ---
 
@@ -162,8 +163,9 @@ Cyph/
 ├── README.md                 # This file
 ├── docker-compose.yml        # Local dev: docker compose up (DB + backend + frontend, live code)
 ├── docs/
-│   ├── PRODUCT.md            # Product vision, extension API, SOC 2 / ISO 27001
-│   └── DEPLOYMENT.md         # Production deployment
+│   ├── PRODUCT.md            # Product vision, extension API
+│   ├── DEPLOYMENT.md         # Production deployment
+│   └── COMPLIANCE.md         # SOC 2, ISO 27001, GDPR, India DPDP
 ├── cyph-extension/           # Chrome extension (org-managed password manager client)
 ├── backend/                  # Java Spring Boot API
 │   ├── Dockerfile.dev        # Dev image (mount source, Gradle continuous build)

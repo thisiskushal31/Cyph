@@ -51,7 +51,7 @@ async function login(baseUrl, username, password) {
     throw new Error(data.message || `Login failed (${res.status})`);
   }
   const data = await res.json();
-  return data.accessToken;
+  return data.accessToken || data.token;
 }
 
 async function fetchCredentials(baseUrl, token) {
@@ -68,7 +68,7 @@ async function fetchCredentials(baseUrl, token) {
 async function revealCredential(baseUrl, token, credentialId) {
   const res = await fetch(`${baseUrl}/api/v1/extension/credentials/${credentialId}/reveal`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
@@ -92,13 +92,15 @@ function renderCredentialsList(items) {
   items.forEach((item) => {
     const div = document.createElement('div');
     div.className = 'credential-item';
+    const username = item.usernameMeta || item.username;
+    const source = item.source || '';
     div.innerHTML = `
       <div>
-        <div class="label">${escapeHtml(item.label || 'Unnamed')}</div>
-        ${item.username ? `<div class="meta">${escapeHtml(item.username)}</div>` : ''}
+        <div class="label">${escapeHtml(item.label || 'Unnamed')} ${source ? `<span class="source-badge">${escapeHtml(source)}</span>` : ''}</div>
+        ${username ? `<div class="meta">${escapeHtml(username)}</div>` : ''}
         ${item.url ? `<div class="meta">${escapeHtml(item.url)}</div>` : ''}
       </div>
-      <button type="button" class="reveal-btn" data-id="${escapeHtml(item.id)}">Reveal</button>
+      <button type="button" class="reveal-btn" data-id="${escapeHtml(String(item.id))}">Reveal</button>
     `;
     div.querySelector('.reveal-btn').addEventListener('click', () => handleReveal(item.id));
     list.appendChild(div);

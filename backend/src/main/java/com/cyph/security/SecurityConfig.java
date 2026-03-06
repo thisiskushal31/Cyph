@@ -14,6 +14,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import java.util.Optional;
 
@@ -30,17 +31,20 @@ public class SecurityConfig {
     private final Optional<ClientRegistrationRepository> clientRegistrationRepository;
     private final Optional<UserDetailsService> userDetailsService;
     private final Optional<FormLoginSuccessHandler> formLoginSuccessHandler;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     public SecurityConfig(CyphProperties cyphProperties,
                           Optional<CyphOAuth2LoginSuccessHandler> successHandler,
                           Optional<ClientRegistrationRepository> clientRegistrationRepository,
                           Optional<UserDetailsService> userDetailsService,
-                          Optional<FormLoginSuccessHandler> formLoginSuccessHandler) {
+                          Optional<FormLoginSuccessHandler> formLoginSuccessHandler,
+                          JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.cyphProperties = cyphProperties;
         this.successHandler = successHandler;
         this.clientRegistrationRepository = clientRegistrationRepository;
         this.userDetailsService = userDetailsService;
         this.formLoginSuccessHandler = formLoginSuccessHandler;
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
     @Bean
@@ -65,7 +69,7 @@ public class SecurityConfig {
         boolean anyAuthEnabled = (oauth2Enabled && successHandler.isPresent()) || formLoginEnabled;
 
         http.authorizeHttpRequests(auth -> {
-            auth.requestMatchers(ApiV1.BASE + "/public/**", ApiV1.BASE + "/auth/login", "/actuator/health", "/error", "/login", "/logout", "/oauth2/**").permitAll();
+            auth.requestMatchers(ApiV1.BASE + "/public/**", ApiV1.BASE + "/auth/login", ApiV1.BASE + "/auth/extension-login", "/actuator/health", "/error", "/login", "/logout", "/oauth2/**").permitAll();
             if (anyAuthEnabled) {
                 auth.anyRequest().authenticated();
             } else {
@@ -88,6 +92,8 @@ public class SecurityConfig {
                     .successHandler(formLoginSuccessHandler.orElseThrow())
                     .failureHandler(new FormLoginFailureHandler(cyphProperties)));
         }
+
+        http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

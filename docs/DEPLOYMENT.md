@@ -15,11 +15,13 @@ Deploy Cyph so any organization can run it at their own URL. Use this with **PRO
    - `ADMIN_USERNAME`, `ADMIN_PASSWORD` (super-admin)
    - `POSTGRES_PASSWORD` / DB URL
    - OAuth client secrets (if using SSO/Google)
-   - Any key material for encrypting pushed credentials (future)
+   - `CYPH_EXTENSION_JWT_SECRET` – secret for signing extension JWTs (min 32 bytes for HS256). Use a strong random value in production.
+   - Any other key material for encrypting pushed credentials (handled by app encryption)
 
 2. **URLs**
    - `CYPH_SITE_URL` = public URL of the frontend (e.g. `https://cyph.company.com`)
-   - Backend and frontend must agree on this (cookies, CORS, redirects)
+   - Backend and frontend must agree on this (cookies, CORS, redirects).
+   - **Extension:** Users configure the extension with this same URL. The extension calls `https://cyph.company.com/api/v1/auth/extension-login` and `https://cyph.company.com/api/v1/extension/credentials` (and related endpoints). Ensure the backend is reachable at the same origin (or CORS allows the extension if applicable).
 
 3. **TLS**
    - Terminate HTTPS at reverse proxy; backend can be HTTP behind proxy.

@@ -132,6 +132,86 @@ public class AuditService {
         repository.save(e);
     }
 
+    @Transactional
+    public void logExtensionLogin(String actorIdentifier) {
+        AuditLog e = new AuditLog();
+        e.setEventType(AuditLog.EventType.EXTENSION_LOGIN);
+        e.setOccurredAt(Instant.now());
+        e.setActorIdentifier(sanitize(actorIdentifier));
+        repository.save(e);
+    }
+
+    @Transactional
+    public void logCredentialSharedPushed(String actorEmail, String label, String targetDetail) {
+        AuditLog e = new AuditLog();
+        e.setEventType(AuditLog.EventType.CREDENTIAL_SHARED_PUSHED);
+        e.setOccurredAt(Instant.now());
+        e.setActorIdentifier(sanitize(actorEmail));
+        e.setTargetIdentifier(sanitize(label));
+        e.setDetails(sanitize(targetDetail));
+        repository.save(e);
+    }
+
+    @Transactional
+    public void logCredentialSharedUpdated(String actorEmail, String label) {
+        AuditLog e = new AuditLog();
+        e.setEventType(AuditLog.EventType.CREDENTIAL_SHARED_UPDATED);
+        e.setOccurredAt(Instant.now());
+        e.setActorIdentifier(sanitize(actorEmail));
+        e.setTargetIdentifier(sanitize(label));
+        repository.save(e);
+    }
+
+    @Transactional
+    public void logCredentialSharedRevoked(String actorEmail, String label) {
+        AuditLog e = new AuditLog();
+        e.setEventType(AuditLog.EventType.CREDENTIAL_SHARED_REVOKED);
+        e.setOccurredAt(Instant.now());
+        e.setActorIdentifier(sanitize(actorEmail));
+        e.setTargetIdentifier(sanitize(label));
+        repository.save(e);
+    }
+
+    @Transactional
+    public void logCredentialPersonalAdded(String actorEmail, String label) {
+        AuditLog e = new AuditLog();
+        e.setEventType(AuditLog.EventType.CREDENTIAL_PERSONAL_ADDED);
+        e.setOccurredAt(Instant.now());
+        e.setActorIdentifier(sanitize(actorEmail));
+        e.setTargetIdentifier(sanitize(label));
+        repository.save(e);
+    }
+
+    @Transactional
+    public void logCredentialPersonalUpdated(String actorEmail, String label) {
+        AuditLog e = new AuditLog();
+        e.setEventType(AuditLog.EventType.CREDENTIAL_PERSONAL_UPDATED);
+        e.setOccurredAt(Instant.now());
+        e.setActorIdentifier(sanitize(actorEmail));
+        e.setTargetIdentifier(sanitize(label));
+        repository.save(e);
+    }
+
+    @Transactional
+    public void logCredentialPersonalDeleted(String actorEmail, String label) {
+        AuditLog e = new AuditLog();
+        e.setEventType(AuditLog.EventType.CREDENTIAL_PERSONAL_DELETED);
+        e.setOccurredAt(Instant.now());
+        e.setActorIdentifier(sanitize(actorEmail));
+        e.setTargetIdentifier(sanitize(label));
+        repository.save(e);
+    }
+
+    @Transactional
+    public void logCredentialRevealed(String actorIdentifier, Long credentialId, String source) {
+        AuditLog e = new AuditLog();
+        e.setEventType(AuditLog.EventType.CREDENTIAL_REVEALED);
+        e.setOccurredAt(Instant.now());
+        e.setActorIdentifier(sanitize(actorIdentifier));
+        e.setDetails("credentialId=" + credentialId + ",source=" + (source != null ? source : ""));
+        repository.save(e);
+    }
+
     private static String sanitize(String s) {
         if (s == null || s.length() > 255) return s == null ? null : s.substring(0, 255);
         return s;

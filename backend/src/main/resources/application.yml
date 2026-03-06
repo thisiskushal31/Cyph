@@ -46,6 +46,9 @@ cyph:
     # Super-admin is seeded from form-login username/password (ADMIN_USERNAME / ADMIN_PASSWORD in Docker).
     # Admin status is stored in DB; only the seeded super-admin cannot be deleted or demoted.
     require-allowed-user-list: false
+    extension-jwt:
+      secret: ${CYPH_EXTENSION_JWT_SECRET:change-me-extension-jwt-secret-min-32-bytes-long-for-hs256}
+      expiration-minutes: ${CYPH_EXTENSION_JWT_EXPIRATION_MINUTES:1440}
   cleanup:
     cron: "0 */15 * * * *"
   mail:

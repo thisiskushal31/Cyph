@@ -86,9 +86,13 @@ export interface GroupPermissionDto {
 
 /** Backend errors return { message: string }. Use this for consistent user-facing error text. */
 export function getApiErrorMessage(err: unknown, fallback = 'Something went wrong'): string {
-  if (err && typeof err === 'object' && 'error' in err) {
-    const body = (err as { error?: { message?: string } }).error;
-    if (body && typeof body === 'object' && typeof body.message === 'string') return body.message;
+  if (err && typeof err === 'object') {
+    const e = err as Record<string, unknown>;
+    const body = e['error'];
+    if (body && typeof body === 'object' && body !== null && typeof (body as Record<string, unknown>)['message'] === 'string') {
+      return (body as Record<string, string>)['message'];
+    }
+    if (typeof e['message'] === 'string') return e['message'];
   }
   if (err instanceof Error && err.message) return err.message;
   return fallback;
@@ -185,4 +189,94 @@ export class ApiService {
       { withCredentials: true }
     );
   }
+
+  // --- My credentials (personal, session auth) ---
+  listCredentials(): Observable<StoredCredentialDto[]> {
+    return this.http.get<StoredCredentialDto[]>(`${this.base}/credentials`, { withCredentials: true });
+  }
+
+  createCredential(body: CreateCredentialRequest): Observable<{ id: number; label: string }> {
+    return this.http.post<{ id: number; label: string }>(`${this.base}/credentials`, body, { withCredentials: true });
+  }
+
+  updateCredential(id: number, body: UpdateCredentialRequest): Observable<{ id: number }> {
+    return this.http.put<{ id: number }>(`${this.base}/credentials/${id}`, body, { withCredentials: true });
+  }
+
+  deleteCredential(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/credentials/${id}`, { withCredentials: true });
+  }
+
+  // --- Admin: shared credentials ---
+  listAdminCredentials(): Observable<StoredCredentialDto[]> {
+    return this.http.get<StoredCredentialDto[]>(`${this.base}/admin/credentials`, { withCredentials: true });
+  }
+
+  getAdminCredential(id: number): Observable<SharedCredentialAdminDto> {
+    return this.http.get<SharedCredentialAdminDto>(`${this.base}/admin/credentials/${id}`, { withCredentials: true });
+  }
+
+  createAdminCredential(body: CreateSharedCredentialRequest): Observable<{ id: number; label: string }> {
+    return this.http.post<{ id: number; label: string }>(`${this.base}/admin/credentials`, body, { withCredentials: true });
+  }
+
+  updateAdminCredential(id: number, body: UpdateSharedCredentialRequest): Observable<{ id: number; label: string }> {
+    return this.http.put<{ id: number; label: string }>(`${this.base}/admin/credentials/${id}`, body, { withCredentials: true });
+  }
+
+  deleteAdminCredential(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/admin/credentials/${id}`, { withCredentials: true });
+  }
+}
+
+export interface StoredCredentialDto {
+  id: number;
+  type: string;
+  label: string;
+  url?: string | null;
+  usernameMeta?: string | null;
+  createdAt: string;
+}
+
+export interface CreateCredentialRequest {
+  label: string;
+  url?: string;
+  usernameMeta?: string;
+  secret: string;
+}
+
+export interface UpdateCredentialRequest {
+  label?: string;
+  url?: string;
+  usernameMeta?: string;
+  secret?: string;
+}
+
+export interface CreateSharedCredentialRequest {
+  label: string;
+  url?: string;
+  usernameMeta?: string;
+  secret: string;
+  assignToUserEmails?: string[];
+  assignToGroupNames?: string[];
+}
+
+/** Admin view of a shared credential (for edit form); no secret. */
+export interface SharedCredentialAdminDto {
+  id: number;
+  label: string;
+  url?: string | null;
+  usernameMeta?: string | null;
+  assignToUserEmails: string[];
+  assignToGroupNames: string[];
+}
+
+/** Update shared credential; all optional; leave secret blank to keep current. */
+export interface UpdateSharedCredentialRequest {
+  label?: string;
+  url?: string;
+  usernameMeta?: string;
+  secret?: string;
+  assignToUserEmails?: string[];
+  assignToGroupNames?: string[];
 }

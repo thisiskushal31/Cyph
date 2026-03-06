@@ -9,10 +9,21 @@ Full credential manager client for Cyph: **shared** (admin-pushed) and **persona
 
 For a site like `monitor.example.com` you might see both the shared team login and your personal login; you pick which one to use. All data is centralized in Cyph.
 
+## URL used by the extension
+
+The extension uses the **same URL as your Cyph deployment**. For example, if your organization deploys Cyph at `https://cyph.company.com`, users enter that URL in the extension. The extension then calls:
+
+- `POST https://cyph.company.com/api/v1/auth/extension-login` (login, get token)
+- `GET https://cyph.company.com/api/v1/extension/credentials` (list shared + personal)
+- `POST https://cyph.company.com/api/v1/extension/credentials/{id}/reveal` (reveal secret)
+- And personal CRUD endpoints under the same base URL.
+
+So: **one URL per deployment** – the same base URL you use for the web app is used for the extension.
+
 ## How it works
 
-1. **Admin** deploys Cyph and pushes **shared** credentials to users/groups (web app; backend API in progress).
-2. **User** installs this extension, enters **Cyph URL** and **username** / **password** (their Cyph login).
+1. **Admin** deploys Cyph and pushes **shared** credentials to users/groups (Admin → Shared credentials in the web app).
+2. **User** installs this extension, enters **Cyph URL** (e.g. `https://cyph.company.com`) and **username** / **password** (their Cyph login).
 3. Extension calls `POST /api/v1/auth/extension-login` and receives a token.
 4. User sees a **unified list** (shared + personal) from `GET /api/v1/extension/credentials` (each item has a `source`: shared or personal).
 5. **Reveal** copies the secret to the clipboard (`POST /api/v1/extension/credentials/:id/reveal`).

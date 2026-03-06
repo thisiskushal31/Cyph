@@ -7,6 +7,7 @@ import com.cyph.api.dto.SetAdminRequest;
 import com.cyph.service.AllowedUserService;
 import com.cyph.service.AuditService;
 import com.cyph.service.GroupSendPermissionService;
+import com.cyph.service.StoredCredentialService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +17,7 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -32,12 +34,15 @@ public class AdminController {
     private final AllowedUserService allowedUserService;
     private final AuditService auditService;
     private final GroupSendPermissionService groupSendPermissionService;
+    private final StoredCredentialService credentialService;
 
     public AdminController(AllowedUserService allowedUserService, AuditService auditService,
-                           GroupSendPermissionService groupSendPermissionService) {
+                           GroupSendPermissionService groupSendPermissionService,
+                           StoredCredentialService credentialService) {
         this.allowedUserService = allowedUserService;
         this.auditService = auditService;
         this.groupSendPermissionService = groupSendPermissionService;
+        this.credentialService = credentialService;
     }
 
     @GetMapping("/users")
@@ -203,6 +208,86 @@ public class AdminController {
         return ResponseEntity.ok(auditService.getAuditLog(pageable));
     }
 
+    @GetMapping("/credentials")
+    public ResponseEntity<?> listSharedCredentials(
+            Authentication authentication,
+            @AuthenticationPrincipal OidcUser oidcUser,
+            @AuthenticationPrincipal OAuth2User oauth2User) {
+        AuthResult auth = requireAdmin(oidcUser, oauth2User, authentication);
+        if (auth.error() != null) return auth.error();
+        return ResponseEntity.ok(credentialService.listShared());
+    }
+
+    @PostMapping("/credentials")
+    public ResponseEntity<?> createSharedCredential(@RequestBody CreateSharedCredentialRequest body,
+            Authentication authentication,
+            @AuthenticationPrincipal OidcUser oidcUser,
+            @AuthenticationPrincipal OAuth2User oauth2User) {
+        AuthResult auth = requireAdmin(oidcUser, oauth2User, authentication);
+        if (auth.error() != null) return auth.error();
+        String label = body != null ? body.getLabel() : null;
+        if (label == null || label.isBlank()) return badRequest("label is required");
+        String secret = body != null ? body.getSecret() : null;
+        if (secret == null) secret = "";
+        try {
+            var c = credentialService.createShared(
+                    auth.adminEmail(),
+                    label,
+                    body != null ? body.getUrl() : null,
+                    body != null ? body.getUsernameMeta() : null,
+                    secret,
+                    body != null ? body.getAssignToUserEmails() : null,
+                    body != null ? body.getAssignToGroupNames() : null);
+            return ResponseEntity.status(201).body(Map.of("id", c.getId(), "label", c.getLabel()));
+        } catch (Exception e) {
+            return badRequest(e.getMessage());
+        }
+    }
+
+    @GetMapping("/credentials/{id}")
+    public ResponseEntity<?> getSharedCredential(@PathVariable Long id,
+            Authentication authentication,
+            @AuthenticationPrincipal OidcUser oidcUser,
+            @AuthenticationPrincipal OAuth2User oauth2User) {
+        AuthResult auth = requireAdmin(oidcUser, oauth2User, authentication);
+        if (auth.error() != null) return auth.error();
+        return credentialService.getSharedForAdmin(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/credentials/{id}")
+    public ResponseEntity<?> updateSharedCredential(@PathVariable Long id, @RequestBody(required = false) UpdateSharedCredentialRequest body,
+            Authentication authentication,
+            @AuthenticationPrincipal OidcUser oidcUser,
+            @AuthenticationPrincipal OAuth2User oauth2User) {
+        AuthResult auth = requireAdmin(oidcUser, oauth2User, authentication);
+        if (auth.error() != null) return auth.error();
+        if (body != null && body.getLabel() != null && body.getLabel().isBlank()) {
+            return badRequest("label cannot be empty");
+        }
+        var opt = credentialService.updateShared(
+                auth.adminEmail(), id,
+                body != null ? body.getLabel() : null,
+                body != null ? body.getUrl() : null,
+                body != null ? body.getUsernameMeta() : null,
+                body != null ? body.getSecret() : null,
+                body != null ? body.getAssignToUserEmails() : null,
+                body != null ? body.getAssignToGroupNames() : null);
+        return opt.isPresent() ? ResponseEntity.ok(Map.of("id", id, "label", opt.get().getLabel())) : ResponseEntity.notFound().build();
+    }
+
+    @DeleteMapping("/credentials/{id}")
+    public ResponseEntity<?> deleteSharedCredential(@PathVariable Long id,
+            Authentication authentication,
+            @AuthenticationPrincipal OidcUser oidcUser,
+            @AuthenticationPrincipal OAuth2User oauth2User) {
+        AuthResult auth = requireAdmin(oidcUser, oauth2User, authentication);
+        if (auth.error() != null) return auth.error();
+        credentialService.deleteShared(auth.adminEmail(), id);
+        return ResponseEntity.noContent().build();
+    }
+
     // --- Auth & error helpers (consistent responses for all admin endpoints) ---
 
     /** Returns current user email from OIDC, OAuth2, or form auth; null if not authenticated. */
@@ -240,5 +325,50 @@ public class AdminController {
 
     private static ResponseEntity<?> notFound(String message) {
         return ResponseEntity.status(404).body(Map.of("message", message != null ? message : "Not found"));
+    }
+
+    public static class CreateSharedCredentialRequest {
+        private String label;
+        private String url;
+        private String usernameMeta;
+        private String secret;
+        private List<String> assignToUserEmails;
+        private List<String> assignToGroupNames;
+
+        public String getLabel() { return label; }
+        public void setLabel(String label) { this.label = label; }
+        public String getUrl() { return url; }
+        public void setUrl(String url) { this.url = url; }
+        public String getUsernameMeta() { return usernameMeta; }
+        public void setUsernameMeta(String usernameMeta) { this.usernameMeta = usernameMeta; }
+        public String getSecret() { return secret; }
+        public void setSecret(String secret) { this.secret = secret; }
+        public List<String> getAssignToUserEmails() { return assignToUserEmails; }
+        public void setAssignToUserEmails(List<String> assignToUserEmails) { this.assignToUserEmails = assignToUserEmails; }
+        public List<String> getAssignToGroupNames() { return assignToGroupNames; }
+        public void setAssignToGroupNames(List<String> assignToGroupNames) { this.assignToGroupNames = assignToGroupNames; }
+    }
+
+    /** Update shared credential: all fields optional; leave secret blank to keep current. */
+    public static class UpdateSharedCredentialRequest {
+        private String label;
+        private String url;
+        private String usernameMeta;
+        private String secret;
+        private List<String> assignToUserEmails;
+        private List<String> assignToGroupNames;
+
+        public String getLabel() { return label; }
+        public void setLabel(String label) { this.label = label; }
+        public String getUrl() { return url; }
+        public void setUrl(String url) { this.url = url; }
+        public String getUsernameMeta() { return usernameMeta; }
+        public void setUsernameMeta(String usernameMeta) { this.usernameMeta = usernameMeta; }
+        public String getSecret() { return secret; }
+        public void setSecret(String secret) { this.secret = secret; }
+        public List<String> getAssignToUserEmails() { return assignToUserEmails; }
+        public void setAssignToUserEmails(List<String> assignToUserEmails) { this.assignToUserEmails = assignToUserEmails; }
+        public List<String> getAssignToGroupNames() { return assignToGroupNames; }
+        public void setAssignToGroupNames(List<String> assignToGroupNames) { this.assignToGroupNames = assignToGroupNames; }
     }
 }

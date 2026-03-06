@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ApiService, API_BASE, getApiErrorMessage, AllowedUserDto, MeResponse, GroupDto, GroupPermissionDto } from '../../core/services/api.service';
+import { ApiService, API_BASE, getApiErrorMessage, AllowedUserDto, MeResponse, GroupDto, GroupPermissionDto, StoredCredentialDto, CreateSharedCredentialRequest, SharedCredentialAdminDto, UpdateSharedCredentialRequest } from '../../core/services/api.service';
 
 @Component({
   selector: 'app-admin',
@@ -124,6 +124,184 @@ import { ApiService, API_BASE, getApiErrorMessage, AllowedUserDto, MeResponse, G
           }
         </section>
 
+        <section class="app-card p-6">
+          <h2 class="text-lg font-semibold text-slate-800">Shared credentials</h2>
+          <p class="mt-1 text-sm text-slate-500">Push credentials to users or groups. They appear in the extension alongside each user's personal credentials.</p>
+          <form (ngSubmit)="onAddCredential()" class="mt-4 grid gap-4 sm:grid-cols-2">
+            <div>
+              <label for="credLabel" class="block text-sm font-semibold text-slate-700">Label</label>
+              <input id="credLabel" type="text" [(ngModel)]="credLabel" name="credLabel" placeholder="e.g. Grafana - Engineering" class="app-input mt-2 w-full" />
+            </div>
+            <div>
+              <label for="credUrl" class="block text-sm font-semibold text-slate-700">URL</label>
+              <input id="credUrl" type="url" [(ngModel)]="credUrl" name="credUrl" placeholder="https://monitor.example.com" class="app-input mt-2 w-full" />
+            </div>
+            <div>
+              <label for="credUsername" class="block text-sm font-semibold text-slate-700">Username</label>
+              <input id="credUsername" type="text" [(ngModel)]="credUsername" name="credUsername" placeholder="Login name" class="app-input mt-2 w-full" />
+            </div>
+            <div>
+              <label for="credSecret" class="block text-sm font-semibold text-slate-700">Secret / password</label>
+              <input id="credSecret" type="password" [(ngModel)]="credSecret" name="credSecret" placeholder="••••••••" class="app-input mt-2 w-full" />
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-sm font-semibold text-slate-700">Assign to users</label>
+              <div class="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/90 p-2 min-h-[2.75rem]">
+                @for (email of credAssignUserEmails; track email) {
+                  <span class="inline-flex items-center gap-1 rounded-lg bg-indigo-100 px-2.5 py-1 text-sm font-medium text-indigo-800">
+                    {{ email }}
+                    <button type="button" (click)="removeCredUser(email)" class="rounded p-0.5 hover:bg-indigo-200" aria-label="Remove">&#215;</button>
+                  </span>
+                }
+                <select
+                  (change)="addCredUserFromSelect($event)"
+                  class="min-w-[10rem] flex-1 rounded-lg border-0 bg-transparent py-1 text-sm text-slate-600 focus:ring-0 focus:outline-none"
+                >
+                  <option value="">Add user...</option>
+                  @for (u of users; track u.email) {
+                    @if (!credAssignUserEmails.includes(u.email)) {
+                      <option [value]="u.email">{{ u.email }}</option>
+                    }
+                  }
+                </select>
+              </div>
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-sm font-semibold text-slate-700">Assign to groups</label>
+              <div class="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/90 p-2 min-h-[2.75rem]">
+                @for (name of credAssignGroupNames; track name) {
+                  <span class="inline-flex items-center gap-1 rounded-lg bg-slate-200 px-2.5 py-1 text-sm font-medium text-slate-800">
+                    {{ name }}
+                    <button type="button" (click)="removeCredGroup(name)" class="rounded p-0.5 hover:bg-slate-300" aria-label="Remove">&#215;</button>
+                  </span>
+                }
+                <select
+                  (change)="addCredGroupFromSelect($event)"
+                  class="min-w-[10rem] flex-1 rounded-lg border-0 bg-transparent py-1 text-sm text-slate-600 focus:ring-0 focus:outline-none"
+                >
+                  <option value="">Add group...</option>
+                  @for (g of groups; track g.id) {
+                    @if (!credAssignGroupNames.includes(g.name)) {
+                      <option [value]="g.name">{{ g.name }}</option>
+                    }
+                  }
+                </select>
+              </div>
+            </div>
+            <div class="sm:col-span-2">
+              <button type="submit" [disabled]="!credLabel.trim() || addingCred" class="app-btn-primary">{{ addingCred ? '…' : 'Push shared credential' }}</button>
+            </div>
+          </form>
+          @if (credError) {
+            <p class="mt-2 text-sm text-red-600">{{ credError }}</p>
+          }
+          @if (sharedCredentials.length > 0) {
+            <div class="mt-4 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50/50">
+              <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-100/80">
+                  <tr>
+                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Label</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">URL</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Username</th>
+                    <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Actions</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 bg-white">
+                  @for (c of sharedCredentials; track c.id) {
+                    <tr>
+                      <td class="px-4 py-3 text-sm font-medium text-slate-900">{{ c.label }}</td>
+                      <td class="max-w-[14rem] truncate px-4 py-3 text-sm text-slate-600">{{ c.url || '—' }}</td>
+                      <td class="px-4 py-3 text-sm text-slate-600">{{ c.usernameMeta || '—' }}</td>
+                      <td class="px-4 py-3 text-right whitespace-nowrap">
+                        <button type="button" (click)="startEditSharedCredential(c.id)" class="rounded-lg px-2.5 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 mr-2">Edit</button>
+                        <button type="button" (click)="deleteCredential(c.id)" [disabled]="deletingCred === c.id" class="rounded-lg px-2.5 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50">{{ deletingCred === c.id ? '…' : 'Revoke' }}</button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </section>
+
+        @if (editingSharedCredential) {
+          <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" (click)="cancelEditSharedCredential()">
+            <div class="app-card p-6 max-w-lg w-full shadow-xl max-h-[90vh] overflow-y-auto" (click)="$event.stopPropagation()">
+              <h3 class="text-lg font-semibold text-slate-800">Edit shared credential</h3>
+              <p class="mt-1 text-sm text-slate-500">Change label, URL, username, or assignments. Leave secret blank to keep the current password.</p>
+              <form (ngSubmit)="saveEditSharedCredential()" class="mt-4 space-y-4">
+                <div>
+                  <label class="block text-sm font-semibold text-slate-700">Label</label>
+                  <input type="text" [(ngModel)]="editCredLabel" name="editCredLabel" class="app-input mt-2 w-full" />
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-slate-700">URL</label>
+                  <input type="url" [(ngModel)]="editCredUrl" name="editCredUrl" class="app-input mt-2 w-full" />
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-slate-700">Username</label>
+                  <input type="text" [(ngModel)]="editCredUsername" name="editCredUsername" class="app-input mt-2 w-full" />
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-slate-700">Secret (leave blank to keep current)</label>
+                  <input type="password" [(ngModel)]="editCredSecret" name="editCredSecret" placeholder="••••••••" class="app-input mt-2 w-full" />
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-slate-700">Assign to users</label>
+                  <div class="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/90 p-2 min-h-[2.75rem]">
+                    @for (email of editCredAssignUserEmails; track email) {
+                      <span class="inline-flex items-center gap-1 rounded-lg bg-indigo-100 px-2.5 py-1 text-sm font-medium text-indigo-800">
+                        {{ email }}
+                        <button type="button" (click)="removeEditCredUser(email)" class="rounded p-0.5 hover:bg-indigo-200" aria-label="Remove">&#215;</button>
+                      </span>
+                    }
+                    <select
+                      (change)="addEditCredUserFromSelect($event)"
+                      class="min-w-[10rem] flex-1 rounded-lg border-0 bg-transparent py-1 text-sm text-slate-600 focus:ring-0 focus:outline-none"
+                    >
+                      <option value="">Add user...</option>
+                      @for (u of users; track u.email) {
+                        @if (!editCredAssignUserEmails.includes(u.email)) {
+                          <option [value]="u.email">{{ u.email }}</option>
+                        }
+                      }
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-slate-700">Assign to groups</label>
+                  <div class="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/90 p-2 min-h-[2.75rem]">
+                    @for (name of editCredAssignGroupNames; track name) {
+                      <span class="inline-flex items-center gap-1 rounded-lg bg-slate-200 px-2.5 py-1 text-sm font-medium text-slate-800">
+                        {{ name }}
+                        <button type="button" (click)="removeEditCredGroup(name)" class="rounded p-0.5 hover:bg-slate-300" aria-label="Remove">&#215;</button>
+                      </span>
+                    }
+                    <select
+                      (change)="addEditCredGroupFromSelect($event)"
+                      class="min-w-[10rem] flex-1 rounded-lg border-0 bg-transparent py-1 text-sm text-slate-600 focus:ring-0 focus:outline-none"
+                    >
+                      <option value="">Add group...</option>
+                      @for (g of groups; track g.id) {
+                        @if (!editCredAssignGroupNames.includes(g.name)) {
+                          <option [value]="g.name">{{ g.name }}</option>
+                        }
+                      }
+                    </select>
+                  </div>
+                </div>
+                <div class="flex gap-2 justify-end pt-2">
+                  <button type="button" (click)="cancelEditSharedCredential()" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
+                  <button type="submit" [disabled]="savingEditCred" class="app-btn-primary">{{ savingEditCred ? '…' : 'Save' }}</button>
+                </div>
+              </form>
+              @if (editCredError) {
+                <p class="mt-2 text-sm text-red-600">{{ editCredError }}</p>
+              }
+            </div>
+          </div>
+        }
+
         <section class="app-card overflow-hidden">
           <div class="p-6 pb-4">
             <h2 class="text-lg font-semibold text-slate-800">Users</h2>
@@ -228,6 +406,27 @@ export class AdminComponent implements OnInit {
   addingPerm = false;
   permError: string | null = null;
 
+  sharedCredentials: StoredCredentialDto[] = [];
+  credLabel = '';
+  credUrl = '';
+  credUsername = '';
+  credSecret = '';
+  credAssignUserEmails: string[] = [];
+  credAssignGroupNames: string[] = [];
+  addingCred = false;
+  credError: string | null = null;
+  deletingCred: number | null = null;
+
+  editingSharedCredential: number | null = null;
+  editCredLabel = '';
+  editCredUrl = '';
+  editCredUsername = '';
+  editCredSecret = '';
+  editCredAssignUserEmails: string[] = [];
+  editCredAssignGroupNames: string[] = [];
+  savingEditCred = false;
+  editCredError: string | null = null;
+
   readonly apiBase = API_BASE;
 
   constructor(private api: ApiService) {}
@@ -237,6 +436,153 @@ export class AdminComponent implements OnInit {
     this.loadGroups();
     this.loadGroupPermissions();
     this.loadUsers();
+    this.loadSharedCredentials();
+  }
+
+  loadSharedCredentials(): void {
+    this.api.listAdminCredentials().subscribe({
+      next: (list) => (this.sharedCredentials = list),
+      error: () => (this.sharedCredentials = []),
+    });
+  }
+
+  addCredUserFromSelect(event: Event): void {
+    const sel = event.target as HTMLSelectElement;
+    const v = sel?.value?.trim();
+    if (v && !this.credAssignUserEmails.includes(v)) this.credAssignUserEmails = [...this.credAssignUserEmails, v];
+    if (sel) sel.value = '';
+  }
+
+  removeCredUser(email: string): void {
+    this.credAssignUserEmails = this.credAssignUserEmails.filter((e) => e !== email);
+  }
+
+  addCredGroupFromSelect(event: Event): void {
+    const sel = event.target as HTMLSelectElement;
+    const v = sel?.value?.trim();
+    if (v && !this.credAssignGroupNames.includes(v)) this.credAssignGroupNames = [...this.credAssignGroupNames, v];
+    if (sel) sel.value = '';
+  }
+
+  removeCredGroup(name: string): void {
+    this.credAssignGroupNames = this.credAssignGroupNames.filter((n) => n !== name);
+  }
+
+  onAddCredential(): void {
+    if (!this.credLabel.trim()) return;
+    this.credError = null;
+    this.addingCred = true;
+    const body: CreateSharedCredentialRequest = {
+      label: this.credLabel.trim(),
+      url: this.credUrl.trim() || undefined,
+      usernameMeta: this.credUsername.trim() || undefined,
+      secret: this.credSecret,
+      assignToUserEmails: this.credAssignUserEmails.length ? [...this.credAssignUserEmails] : undefined,
+      assignToGroupNames: this.credAssignGroupNames.length ? [...this.credAssignGroupNames] : undefined,
+    };
+    this.api.createAdminCredential(body).subscribe({
+      next: () => {
+        this.credLabel = '';
+        this.credUrl = '';
+        this.credUsername = '';
+        this.credSecret = '';
+        this.credAssignUserEmails = [];
+        this.credAssignGroupNames = [];
+        this.addingCred = false;
+        this.loadSharedCredentials();
+      },
+      error: (err) => {
+        this.credError = getApiErrorMessage(err, 'Failed to push credential.');
+        this.addingCred = false;
+      },
+    });
+  }
+
+  deleteCredential(id: number): void {
+    this.deletingCred = id;
+    this.api.deleteAdminCredential(id).subscribe({
+      next: () => {
+        this.deletingCred = null;
+        this.loadSharedCredentials();
+      },
+      error: () => (this.deletingCred = null),
+    });
+  }
+
+  addEditCredUserFromSelect(event: Event): void {
+    const sel = event.target as HTMLSelectElement;
+    const v = sel?.value?.trim();
+    if (v && !this.editCredAssignUserEmails.includes(v)) this.editCredAssignUserEmails = [...this.editCredAssignUserEmails, v];
+    if (sel) sel.value = '';
+  }
+
+  removeEditCredUser(email: string): void {
+    this.editCredAssignUserEmails = this.editCredAssignUserEmails.filter((e) => e !== email);
+  }
+
+  addEditCredGroupFromSelect(event: Event): void {
+    const sel = event.target as HTMLSelectElement;
+    const v = sel?.value?.trim();
+    if (v && !this.editCredAssignGroupNames.includes(v)) this.editCredAssignGroupNames = [...this.editCredAssignGroupNames, v];
+    if (sel) sel.value = '';
+  }
+
+  removeEditCredGroup(name: string): void {
+    this.editCredAssignGroupNames = this.editCredAssignGroupNames.filter((n) => n !== name);
+  }
+
+  startEditSharedCredential(id: number): void {
+    this.editingSharedCredential = id;
+    this.editCredError = null;
+    this.editCredSecret = '';
+    this.api.getAdminCredential(id).subscribe({
+      next: (d) => {
+        this.editCredLabel = d.label ?? '';
+        this.editCredUrl = d.url ?? '';
+        this.editCredUsername = d.usernameMeta ?? '';
+        this.editCredAssignUserEmails = [...(d.assignToUserEmails ?? [])];
+        this.editCredAssignGroupNames = [...(d.assignToGroupNames ?? [])];
+      },
+      error: (err) => {
+        this.editCredError = getApiErrorMessage(err, 'Failed to load credential.');
+        this.editingSharedCredential = null;
+      },
+    });
+  }
+
+  cancelEditSharedCredential(): void {
+    this.editingSharedCredential = null;
+    this.editCredError = null;
+  }
+
+  saveEditSharedCredential(): void {
+    if (this.editingSharedCredential == null) return;
+    const label = this.editCredLabel.trim();
+    if (!label) {
+      this.editCredError = 'Label is required.';
+      return;
+    }
+    this.editCredError = null;
+    this.savingEditCred = true;
+    const body: UpdateSharedCredentialRequest = {
+      label,
+      url: this.editCredUrl.trim() || undefined,
+      usernameMeta: this.editCredUsername.trim() || undefined,
+      assignToUserEmails: [...this.editCredAssignUserEmails],
+      assignToGroupNames: [...this.editCredAssignGroupNames],
+    };
+    if (this.editCredSecret.trim()) body.secret = this.editCredSecret;
+    this.api.updateAdminCredential(this.editingSharedCredential, body).subscribe({
+      next: () => {
+        this.savingEditCred = false;
+        this.editingSharedCredential = null;
+        this.loadSharedCredentials();
+      },
+      error: (err) => {
+        this.editCredError = getApiErrorMessage(err, 'Failed to update.');
+        this.savingEditCred = false;
+      },
+    });
   }
 
   get groupNamesDisplay(): string {
